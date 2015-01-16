@@ -23,14 +23,14 @@
         private class Branch : Node
         {
             private readonly uint _mask;
-            private readonly uint _refinedMask;
+            private readonly int _offset;
             private readonly CircularBucket<Node> children;
 
-            public Branch(uint mask, uint index)
+            public Branch(int offset, uint index)
                 : base(index)
             {
-                _mask = mask;
-                _refinedMask = _mask << 4 | 0xF;
+                _offset = offset;
+                _mask = unchecked((uint)(1 << _offset) - 1);
                 children = new CircularBucket<Node>(INT_Capacity);
             }
 
@@ -61,15 +61,16 @@
                             return true;
                         }
                     }
-                    if (_refinedMask == _mask)
+                    if (_offset == 32)
                     {
                         children.TryAdd(new Leaf(value, index));
                         return true;
                     }
                     else
                     {
-                        var refinedIndex = index & _refinedMask;
-                        var banch = new Branch(_refinedMask, refinedIndex);
+                        var refinedMask = unchecked((uint)(1 << (_offset + 4)) - 1);
+                        var refinedIndex = index & refinedMask;
+                        var banch = new Branch(_offset + 4, refinedIndex);
                         children.TryAdd(banch);
                         return banch.TrySet(index, value);
                     }
