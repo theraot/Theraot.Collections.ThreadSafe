@@ -24,6 +24,8 @@ namespace Tests
             Assert.IsFalse(isNew);
             Assert.IsTrue(mapper.TryGet(0, out result));
             Assert.AreEqual(Input_B, result);
+
+            Assert.AreEqual(1, mapper.Count);
         }
 
         [Test]
@@ -33,6 +35,7 @@ namespace Tests
             int result;
             Assert.IsFalse(mapper.TryGet(0, out result));
             Assert.AreEqual(default(int), result);
+            Assert.AreEqual(0, mapper.Count);
         }
 
         [Test]
@@ -46,6 +49,7 @@ namespace Tests
             Assert.IsTrue(isNew);
             Assert.IsTrue(mapper.TryGet(0, out result));
             Assert.AreEqual(Input, result);
+            Assert.AreEqual(1, mapper.Count);
         }
 
         [Test]
@@ -93,6 +97,7 @@ namespace Tests
                 mapper.TrySet(pair[0], pair[1], out isNew);
                 Assert.IsTrue(isNew);
             }
+            Assert.AreEqual(data.Length, mapper.Count);
             foreach (var pair in data)
             {
                 int result;
