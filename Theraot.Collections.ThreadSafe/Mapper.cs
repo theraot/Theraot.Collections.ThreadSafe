@@ -91,7 +91,7 @@ namespace Theraot.Collections.ThreadSafe
                 var children = branch._children;
                 var subindex = (int)((index >> branch._offset) & 0xF);
                 // Insert leaf
-                isNew = children.Insert(subindex, new Leaf(value, index));
+                children.Set(subindex, new Leaf(value, index), out isNew);
                 // if this returns true, the new item was inserted, so isNew is set to true
                 // if this returns false, some other thread inserted first... so isNew is set to false
                 // yet we pretend we inserted first and the value was replaced by the other thread

@@ -7,6 +7,35 @@ namespace Tests
     internal class MapperTests
     {
         [Test]
+        public void CheckIsNew()
+        {
+            var mapper = new Mapper<int>();
+            const int Input_A = 21;
+            const int Input_B = 42;
+            int result;
+            bool isNew;
+
+            Assert.IsTrue(mapper.TrySet(0, Input_A, out isNew));
+            Assert.IsTrue(isNew);
+            Assert.IsTrue(mapper.TryGet(0, out result));
+            Assert.AreEqual(Input_A, result);
+
+            Assert.IsTrue(mapper.TrySet(0, Input_B, out isNew));
+            Assert.IsFalse(isNew);
+            Assert.IsTrue(mapper.TryGet(0, out result));
+            Assert.AreEqual(Input_B, result);
+        }
+
+        [Test]
+        public void GetNotExisting()
+        {
+            var mapper = new Mapper<int>();
+            int result;
+            Assert.IsFalse(mapper.TryGet(0, out result));
+            Assert.AreEqual(default(int), result);
+        }
+
+        [Test]
         public void SetAndGet()
         {
             var mapper = new Mapper<int>();
