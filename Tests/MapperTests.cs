@@ -29,6 +29,33 @@ namespace Tests
         }
 
         [Test]
+        public void Exchange()
+        {
+            var mapper = new Mapper<int>();
+            const int Input_A = 21;
+            const int Input_B = 42;
+            int result;
+            bool isNew;
+
+            mapper.TrySet(0, Input_A, out isNew);
+            Assert.IsTrue(isNew);
+            Assert.IsTrue(mapper.TryGet(0, out result));
+            Assert.AreEqual(Input_A, result);
+
+            Assert.IsFalse(mapper.Exchange(0, Input_B, out result));
+            Assert.AreEqual(Input_A, result);
+            Assert.IsTrue(mapper.TryGet(0, out result));
+            Assert.AreEqual(Input_B, result);
+
+            Assert.IsTrue(mapper.Exchange(1, Input_A, out result));
+            Assert.AreEqual(default(int), result);
+            Assert.IsTrue(mapper.TryGet(1, out result));
+            Assert.AreEqual(Input_A, result);
+
+            Assert.AreEqual(2, mapper.Count);
+        }
+
+        [Test]
         public void GetNotExisting()
         {
             var mapper = new Mapper<int>();

@@ -27,6 +27,26 @@ namespace Theraot.Collections.ThreadSafe
             }
         }
 
+        /// <summary>
+        /// Sets the item at the specified index.
+        /// </summary>
+        /// <param name="index">The index.</param>
+        /// <param name="item">The item.</param>
+        /// <param name="previous">The previous item in the specified index.</param>
+        /// <returns>
+        ///   <c>true</c> if the item was new; otherwise, <c>false</c>.
+        /// </returns>
+        /// <exception cref="System.ArgumentOutOfRangeException">index;index must be greater or equal to 0 and less than capacity</exception>
+        public bool Exchange(int index, T item, out T previous)
+        {
+            if (_root.Exchange(unchecked((uint)index), item, out previous))
+            {
+                Interlocked.Increment(ref _count);
+                return true;
+            }
+            return false;
+        }
+
         public bool TryGet(int index, out T value)
         {
             return _root.TryGet(unchecked((uint)index), out value);
@@ -44,12 +64,33 @@ namespace Theraot.Collections.ThreadSafe
         private class Branch : Node
         {
             private readonly Bucket<Node> _children;
+
             private readonly int _offset;
 
             public Branch(int offset)
             {
                 _offset = offset;
                 _children = new Bucket<Node>(INT_Capacity);
+            }
+
+            public bool Exchange(uint index, T item, out T previous)
+            {
+                // Get the target branch with which to exchange
+                Branch branch = Map(index, false);
+                // The branch will only be null if we request readonly - we did not
+                var children = branch._children;
+                var subindex = (int)((index >> branch._offset) & 0xF);
+                Node _previous;
+                var isNew = children.Exchange(subindex, new Leaf(item), out _previous);
+                if (isNew)
+                {
+                    previous = default(T);
+                }
+                else
+                {
+                    _previous.TryGet(0, out previous);
+                }
+                return isNew;
             }
 
             public override bool TryGet(uint index, out T value)
