@@ -61,16 +61,16 @@ namespace Theraot.Collections.ThreadSafe
             }
         }
 
-        private class Branch : Node
+        private class Branch : INode
         {
-            private readonly Bucket<Node> _children;
+            private readonly Bucket<INode> _children;
 
             private readonly int _offset;
 
             public Branch(int offset)
             {
                 _offset = offset;
-                _children = new Bucket<Node>(INT_Capacity);
+                _children = new Bucket<INode>(INT_Capacity);
             }
 
             public bool Exchange(uint index, T item, out T previous)
@@ -80,20 +80,13 @@ namespace Theraot.Collections.ThreadSafe
                 // The branch will only be null if we request readonly - we did not
                 var children = branch._children;
                 var subindex = (int)((index >> branch._offset) & 0xF);
-                Node _previous;
+                INode _previous;
                 var isNew = children.Exchange(subindex, new Leaf(item), out _previous);
-                if (isNew)
-                {
-                    previous = default(T);
-                }
-                else
-                {
-                    _previous.TryGet(0, out previous);
-                }
+                previous = isNew ? default(T) : ((Leaf)_previous).Value;
                 return isNew;
             }
 
-            public override bool TryGet(uint index, out T value)
+            public bool TryGet(uint index, out T value)
             {
                 value = default(T);
                 // Get the target branch to which to insert
@@ -107,13 +100,14 @@ namespace Theraot.Collections.ThreadSafe
                 else
                 {
                     // We got a branch, attempt to read it
-                    Node node;
+                    INode node;
                     var children = branch._children;
                     var subindex = (int)((index >> branch._offset) & 0xF);
                     if (children.TryGet(subindex, out node))
                     {
                         // We found the leaf, read it to get the value
-                        return node.TryGet(index, out value);
+                        value = ((Leaf)node).Value;
+                        return true;
                     }
                     // We didn't get the leaf, it may have been removed
                     return false;
@@ -137,7 +131,7 @@ namespace Theraot.Collections.ThreadSafe
 
             private Branch Map(uint index, bool readOnly)
             {
-                Node result;
+                INode result;
                 // Calculate the index of the target child
                 var subindex = (int)((index >> _offset) & 0xF);
                 // Retrieve the already present branch
@@ -226,7 +220,7 @@ namespace Theraot.Collections.ThreadSafe
             }
         }
 
-        private class Leaf : Node
+        private class Leaf : INode
         {
             private readonly T _value;
 
@@ -235,17 +229,18 @@ namespace Theraot.Collections.ThreadSafe
                 _value = value;
             }
 
-            public override bool TryGet(uint index, out T value)
+            public T Value
             {
-                // We assume the index is right
-                value = _value;
-                return true;
+                get
+                {
+                    return _value;
+                }
             }
         }
 
-        private abstract class Node
+        private interface INode
         {
-            public abstract bool TryGet(uint index, out T value);
+            // Empty
         }
     }
 }
