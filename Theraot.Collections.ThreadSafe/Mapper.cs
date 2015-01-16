@@ -13,7 +13,7 @@ namespace Theraot.Collections.ThreadSafe
         public Mapper()
         {
             _count = 0;
-            _root = new Branch(0, 0);
+            _root = new Branch(0);
         }
 
         /// <summary>
@@ -44,20 +44,12 @@ namespace Theraot.Collections.ThreadSafe
         private class Branch : Node
         {
             private readonly Bucket<Node> _children;
-            private readonly uint _mask;
             private readonly int _offset;
 
-            public Branch(int offset, uint index)
-                : this(unchecked((uint)(1 << offset) - 1), index)
+            public Branch(int offset)
             {
                 _offset = offset;
                 _children = new Bucket<Node>(INT_Capacity);
-            }
-
-            private Branch(uint mask, uint index)
-                : base(index & mask)
-            {
-                _mask = mask;
             }
 
             public override bool TryGet(uint index, out T value)
@@ -101,7 +93,7 @@ namespace Theraot.Collections.ThreadSafe
                 var children = branch._children;
                 var subindex = (int)((index >> branch._offset) & 0xF);
                 // Insert leaf
-                children.Set(subindex, new Leaf(value, index), out isNew);
+                children.Set(subindex, new Leaf(value), out isNew);
                 // if this returns true, the new item was inserted, so isNew is set to true
                 // if this returns false, some other thread inserted first... so isNew is set to false
                 // yet we pretend we inserted first and the value was replaced by the other thread
@@ -151,7 +143,7 @@ namespace Theraot.Collections.ThreadSafe
                         {
                             // We need to insert a branch
                             // Create the branch to insert
-                            var branch = new Branch(_offset + INT_OffsetStep, index);
+                            var branch = new Branch(_offset + INT_OffsetStep);
                         again:
                             // Attempt to insert the created branch
                             if (_children.Insert(subindex, branch))
@@ -204,8 +196,7 @@ namespace Theraot.Collections.ThreadSafe
             private readonly object _synclock;
             private T _value;
 
-            public Leaf(T value, uint index)
-                : base(index)
+            public Leaf(T value)
             {
                 _value = value;
                 _synclock = new object();
@@ -248,21 +239,6 @@ namespace Theraot.Collections.ThreadSafe
 
         private abstract class Node
         {
-            private readonly uint _index;
-
-            protected Node(uint index)
-            {
-                _index = index;
-            }
-
-            protected uint Index
-            {
-                get
-                {
-                    return _index;
-                }
-            }
-
             public abstract bool TryGet(uint index, out T value);
 
             public abstract void TrySet(uint index, T value, out bool isNew);
