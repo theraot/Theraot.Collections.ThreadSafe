@@ -24,14 +24,14 @@
         {
             private readonly uint _mask;
             private readonly int _offset;
-            private readonly CircularBucket<Node> children;
+            private readonly Bucket<Node> children;
 
             public Branch(int offset, uint index)
                 : base(index)
             {
                 _offset = offset;
                 _mask = unchecked((uint)(1 << _offset) - 1);
-                children = new CircularBucket<Node>(INT_Capacity);
+                children = new Bucket<Node>(INT_Capacity);
             }
 
             public override bool TryGet(uint index, out T value)
@@ -39,12 +39,11 @@
                 value = default(T);
                 if ((index & _mask) == Index)
                 {
-                    foreach (var node in children)
+                    var subindex = (int)((index >> _offset) & 0xF);
+                    Node node;
+                    if (children.TryGet(subindex, out node))
                     {
-                        if (node.TryGet(index, out value))
-                        {
-                            return true;
-                        }
+                        return node.TryGet(index, out value);
                     }
                 }
                 return false;
@@ -54,16 +53,15 @@
             {
                 if ((index & _mask) == Index)
                 {
-                    foreach (var node in children)
+                    var subindex = (int)((index >> _offset) & 0xF);
+                    Node node;
+                    if (children.TryGet(subindex, out node))
                     {
-                        if (node.TrySet(index, value))
-                        {
-                            return true;
-                        }
+                        return node.TrySet(index, value);
                     }
                     if (_offset == 32)
                     {
-                        children.TryAdd(new Leaf(value, index));
+                        children.Insert(subindex, new Leaf(value, index));
                         return true;
                     }
                     else
@@ -71,7 +69,7 @@
                         var refinedMask = unchecked((uint)(1 << (_offset + 4)) - 1);
                         var refinedIndex = index & refinedMask;
                         var banch = new Branch(_offset + 4, refinedIndex);
-                        children.TryAdd(banch);
+                        children.Insert(subindex, banch);
                         return banch.TrySet(index, value);
                     }
                 }
