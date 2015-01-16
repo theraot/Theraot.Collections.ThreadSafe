@@ -7,7 +7,7 @@
 
         public Mapper()
         {
-            root = new Branch(0x00000000, 0);
+            root = new Branch(0, 0);
         }
 
         public bool TryGet(int index, out T value)
@@ -26,11 +26,16 @@
             private readonly int _offset;
             private readonly Bucket<Node> children;
 
+            private Branch(uint mask, uint index)
+                : base(index & mask)
+            {
+                _mask = mask;
+            }
+
             public Branch(int offset, uint index)
-                : base(index)
+                : this(unchecked((uint)(1 << offset) - 1), index)
             {
                 _offset = offset;
-                _mask = unchecked((uint)(1 << _offset) - 1);
                 children = new Bucket<Node>(INT_Capacity);
             }
 
@@ -66,9 +71,7 @@
                     }
                     else
                     {
-                        var refinedMask = unchecked((uint)(1 << (_offset + 4)) - 1);
-                        var refinedIndex = index & refinedMask;
-                        var banch = new Branch(_offset + 4, refinedIndex);
+                        var banch = new Branch(_offset + 4, index);
                         children.Insert(subindex, banch);
                         return banch.TrySet(index, value);
                     }
