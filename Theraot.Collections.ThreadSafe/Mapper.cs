@@ -5,8 +5,8 @@ namespace Theraot.Collections.ThreadSafe
     public class Mapper<T>
     {
         private const int INT_Capacity = 16;
-        private const int INT_OffsetStep = 4;
         private const int INT_MaxOffset = 32;
+        private const int INT_OffsetStep = 4;
         private readonly Branch root;
 
         public Mapper()
@@ -30,17 +30,17 @@ namespace Theraot.Collections.ThreadSafe
             private readonly int _offset;
             private readonly Bucket<Node> children;
 
-            private Branch(uint mask, uint index)
-                : base(index & mask)
-            {
-                _mask = mask;
-            }
-
             public Branch(int offset, uint index)
                 : this(unchecked((uint)(1 << offset) - 1), index)
             {
                 _offset = offset;
                 children = new Bucket<Node>(INT_Capacity);
+            }
+
+            private Branch(uint mask, uint index)
+                : base(index & mask)
+            {
+                _mask = mask;
             }
 
             public override bool TryGet(uint index, out T value)
@@ -135,6 +135,8 @@ namespace Theraot.Collections.ThreadSafe
                                     // Start over, we have a chance to insert the branch back again
                                     // Jump back to where we just created the branch to attemp to insert it again
                                     goto again;
+                                    // This creates a loop
+                                    // TODO: solve loop
                                 }
                             }
                         }
@@ -147,8 +149,8 @@ namespace Theraot.Collections.ThreadSafe
 
         private class Leaf : Node
         {
-            private T _value;
             private readonly object _synclock;
+            private T _value;
 
             public Leaf(T value, uint index)
                 : base(index)
@@ -165,6 +167,7 @@ namespace Theraot.Collections.ThreadSafe
                     return true;
                 }
                 value = default(T);
+                // This fails because the index was wrong
                 return false;
             }
 
@@ -190,6 +193,7 @@ namespace Theraot.Collections.ThreadSafe
                         }
                     }
                 }
+                // This fails because the index was wrong or because another thread took the adventage
                 return false;
             }
         }
