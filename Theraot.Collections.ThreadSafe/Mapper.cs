@@ -64,16 +64,34 @@ namespace Theraot.Collections.ThreadSafe
             public override bool TryGet(uint index, out T value)
             {
                 value = default(T);
-                if ((index & _mask) == Index)
+                if ((index & _mask) != Index)
                 {
-                    var subindex = (int)((index >> _offset) & 0xF);
+                    // This fails because the index was wrong
+                    // On failure, isNew must be false
+                    return false;
+                }
+                // Get the target branch to which to insert
+                Branch branch = Map(index, true);
+                // Check if we got a branch
+                if (branch == null)
+                {
+                    // We didn't get a branch, meaning that what we look for is not there
+                    return false;
+                }
+                else
+                {
+                    // We got a branch, attempt to read it
                     Node node;
-                    if (_children.TryGet(subindex, out node))
+                    var children = branch._children;
+                    var subindex = (int)((index >> branch._offset) & 0xF);
+                    if (children.TryGet(subindex, out node))
                     {
+                        // We found the leaf, read it to get the value
                         return node.TryGet(index, out value);
                     }
+                    // We didn't get the leaf, it may have been removed
+                    return false;
                 }
-                return false;
             }
 
             public override bool TrySet(uint index, T value, out bool isNew)
