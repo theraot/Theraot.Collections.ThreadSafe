@@ -64,11 +64,14 @@
                     if (_refinedMask == _mask)
                     {
                         children.TryAdd(new Leaf(value, index));
+                        return true;
                     }
                     else
                     {
-                        var refinedIndex = index << 4 | 0xF;
-                        children.TryAdd(new Branch(_refinedMask, refinedIndex));
+                        var refinedIndex = index & _refinedMask;
+                        var banch = new Branch(_refinedMask, refinedIndex);
+                        children.TryAdd(banch);
+                        return banch.TrySet(index, value);
                     }
                 }
                 return false;
