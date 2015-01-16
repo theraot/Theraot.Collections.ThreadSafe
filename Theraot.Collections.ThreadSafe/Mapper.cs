@@ -164,6 +164,8 @@ namespace Theraot.Collections.ThreadSafe
                     }
                     return true;
                 }
+                // This fails because the index was wrong
+                // On failure, isNew must be false
                 isNew = false;
                 return false;
             }
@@ -195,7 +197,8 @@ namespace Theraot.Collections.ThreadSafe
 
             public override bool TrySet(uint index, T value, out bool isNew)
             {
-                // TODO: solve isNew?
+                // We assume that the leaf only exists because it has a vale...
+                // So, no. This is not new.
                 isNew = false;
                 if (index != Index)
                 {
