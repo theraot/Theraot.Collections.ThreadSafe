@@ -128,6 +128,8 @@ namespace Theraot.Collections.ThreadSafe
                                     // We success in retrieving the branch
                                     // Write to it
                                     node.TrySet(index, value);
+                                    // We are leaking the Branch
+                                    // TODO: solve leak
                                 }
                                 else
                                 {
