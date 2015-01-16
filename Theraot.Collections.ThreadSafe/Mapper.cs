@@ -78,96 +78,96 @@ namespace Theraot.Collections.ThreadSafe
 
             public override bool TrySet(uint index, T value, out bool isNew)
             {
-                if ((index & _mask) == Index)
+                if ((index & _mask) != Index)
                 {
-                    Node node;
-                    // Calculate the index of the target child
-                    var subindex = (int)((index >> _offset) & 0xF);
-                    // Retrieve the already present branch
-                    if (children.TryGet(subindex, out node))
+                    // This fails because the index was wrong
+                    // On failure, isNew must be false
+                    isNew = false;
+                    return false;
+                }
+                Node node;
+                // Calculate the index of the target child
+                var subindex = (int)((index >> _offset) & 0xF);
+                // Retrieve the already present branch
+                if (children.TryGet(subindex, out node))
+                {
+                    // We success in retrieving the branch
+                    // Write to it
+                    if (node.TrySet(index, value, out isNew))
                     {
-                        // We success in retrieving the branch
-                        // Write to it
-                        if (node.TrySet(index, value, out isNew))
-                        {
-                            // We success
-                            return true;
-                        }
-                        else
-                        {
-                            // We were unable to write
-                            return false;
-                        }
+                        // We success
+                        return true;
                     }
                     else
                     {
-                        // We fail to retrieve the branch because it is not there
-                        // Try to insert a new one
-                        if (_offset == INT_MaxOffset)
+                        // We were unable to write
+                        return false;
+                    }
+                }
+                else
+                {
+                    // We fail to retrieve the branch because it is not there
+                    // Try to insert a new one
+                    if (_offset == INT_MaxOffset)
+                    {
+                        // We nned to insert a leaf
+                        children.Insert(subindex, new Leaf(value, index));
+                        // if this returns true, the new item was inserted
+                        // if this returns false, some other thread inserted first...
+                        // yet we pretend we inserted first and the value was replaced by the other thread
+                        // So we say we did it
+                        isNew = true;
+                        return true;
+                    }
+                    else
+                    {
+                        // We need to insert a branch
+                        // Create the branch to insert
+                        var branch = new Branch(_offset + INT_OffsetStep, index);
+                    again:
+                        // Attempt to insert the created branch
+                        if (children.Insert(subindex, branch))
                         {
-                            // We nned to insert a leaf
-                            children.Insert(subindex, new Leaf(value, index));
-                            // if this returns true, the new item was inserted
-                            // if this returns false, some other thread inserted first...
-                            // yet we pretend we inserted first and the value was replaced by the other thread
-                            // So we say we did it
-                            isNew = true;
-                            return true;
-                        }
-                        else
-                        {
-                            // We need to insert a branch
-                            // Create the branch to insert
-                            var branch = new Branch(_offset + INT_OffsetStep, index);
-                        again:
-                            // Attempt to insert the created branch
-                            if (children.Insert(subindex, branch))
+                            // We success in inserting the branch
+                            // Now write to the inserted branch
+                            if (branch.TrySet(index, value, out isNew))
                             {
-                                // We success in inserting the branch
-                                // Now write to the inserted branch
-                                if (branch.TrySet(index, value, out isNew))
-                                {
-                                    // We success
-                                    return true;
-                                }
-                                else
-                                {
-                                    // We were unable to write
-                                    return false;
-                                }
+                                // We success
+                                return true;
                             }
                             else
                             {
-                                // We did fail in inserting the branch because another thread inserted one
-                                // Note: We do not jump out to start over...
-                                //       because we have already created a branch, and we may need it
-                                // Retrieve the already present branch
-                                if (children.TryGet(subindex, out node))
-                                {
-                                    // We success in retrieving the branch
-                                    // Write to it
-                                    node.TrySet(index, value, out isNew);
-                                    // We are leaking the Branch
-                                    // TODO: solve leak
-                                }
-                                else
-                                {
-                                    // We fail to retrieve the branch because another thread must have removed it
-                                    // Start over, we have a chance to insert the branch back again
-                                    // Jump back to where we just created the branch to attemp to insert it again
-                                    goto again;
-                                    // This creates a loop
-                                    // TODO: solve loop
-                                }
+                                // We were unable to write
+                                return false;
+                            }
+                        }
+                        else
+                        {
+                            // We did fail in inserting the branch because another thread inserted one
+                            // Note: We do not jump out to start over...
+                            //       because we have already created a branch, and we may need it
+                            // Retrieve the already present branch
+                            if (children.TryGet(subindex, out node))
+                            {
+                                // We success in retrieving the branch
+                                // Write to it
+                                node.TrySet(index, value, out isNew);
+                                // We are leaking the Branch
+                                // TODO: solve leak
+                                return true;
+                            }
+                            else
+                            {
+                                // We fail to retrieve the branch because another thread must have removed it
+                                // Start over, we have a chance to insert the branch back again
+                                // Jump back to where we just created the branch to attemp to insert it again
+                                goto again;
+                                // This creates a loop
+                                // TODO: solve loop
                             }
                         }
                     }
-                    return true;
                 }
-                // This fails because the index was wrong
-                // On failure, isNew must be false
-                isNew = false;
-                return false;
             }
         }
 
