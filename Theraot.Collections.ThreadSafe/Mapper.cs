@@ -3,6 +3,8 @@
     public class Mapper<T>
     {
         private const int INT_Capacity = 16;
+        private const int INT_OffsetStep = 4;
+        private const int INT_MaxOffset = 32;
         private readonly Branch root;
 
         public Mapper()
@@ -64,16 +66,17 @@
                     {
                         return node.TrySet(index, value);
                     }
-                    if (_offset == 32)
+                    if (_offset == INT_MaxOffset)
                     {
-                        children.Insert(subindex, new Leaf(value, index));
-                        return true;
+                        // TODO: what if Insert fails, Insert may fail if the index is already used
+                        return children.Insert(subindex, new Leaf(value, index));
                     }
                     else
                     {
-                        var banch = new Branch(_offset + 4, index);
-                        children.Insert(subindex, banch);
-                        return banch.TrySet(index, value);
+                        var branch = new Branch(_offset + INT_OffsetStep, index);
+                        // TODO: what if Insert fails, Insert may fail if the index is already used
+                        children.Insert(subindex, branch);
+                        return branch.TrySet(index, value);
                     }
                 }
                 return false;
@@ -105,6 +108,7 @@
             {
                 if (index == Index)
                 {
+                    // TODO: Race condition, report true only on winning thread
                     _value = value;
                     return true;
                 }
