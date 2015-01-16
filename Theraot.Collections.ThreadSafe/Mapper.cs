@@ -19,9 +19,9 @@ namespace Theraot.Collections.ThreadSafe
             return root.TryGet(unchecked((uint)index), out value);
         }
 
-        public bool TrySet(int index, T value)
+        public bool TrySet(int index, T value, out bool isNew)
         {
-            return root.TrySet(unchecked((uint)index), value);
+            return root.TrySet(unchecked((uint)index), value, out isNew);
         }
 
         private class Branch : Node
@@ -58,7 +58,7 @@ namespace Theraot.Collections.ThreadSafe
                 return false;
             }
 
-            public override bool TrySet(uint index, T value)
+            public override bool TrySet(uint index, T value, out bool isNew)
             {
                 if ((index & _mask) == Index)
                 {
@@ -70,7 +70,7 @@ namespace Theraot.Collections.ThreadSafe
                     {
                         // We success in retrieving the branch
                         // Write to it
-                        if (node.TrySet(index, value))
+                        if (node.TrySet(index, value, out isNew))
                         {
                             // We success
                             return true;
@@ -93,6 +93,7 @@ namespace Theraot.Collections.ThreadSafe
                             // if this returns false, some other thread inserted first...
                             // yet we pretend we inserted first and the value was replaced by the other thread
                             // So we say we did it
+                            isNew = true;
                             return true;
                         }
                         else
@@ -106,7 +107,7 @@ namespace Theraot.Collections.ThreadSafe
                             {
                                 // We success in inserting the branch
                                 // Now write to the inserted branch
-                                if (branch.TrySet(index, value))
+                                if (branch.TrySet(index, value, out isNew))
                                 {
                                     // We success
                                     return true;
@@ -127,7 +128,7 @@ namespace Theraot.Collections.ThreadSafe
                                 {
                                     // We success in retrieving the branch
                                     // Write to it
-                                    node.TrySet(index, value);
+                                    node.TrySet(index, value, out isNew);
                                     // We are leaking the Branch
                                     // TODO: solve leak
                                 }
@@ -145,6 +146,7 @@ namespace Theraot.Collections.ThreadSafe
                     }
                     return true;
                 }
+                isNew = false;
                 return false;
             }
         }
@@ -173,8 +175,10 @@ namespace Theraot.Collections.ThreadSafe
                 return true;
             }
 
-            public override bool TrySet(uint index, T value)
+            public override bool TrySet(uint index, T value, out bool isNew)
             {
+                // TODO: solve isNew?
+                isNew = false;
                 if (index != Index)
                 {
                     // This fails because the index was wrong
@@ -221,7 +225,7 @@ namespace Theraot.Collections.ThreadSafe
 
             public abstract bool TryGet(uint index, out T value);
 
-            public abstract bool TrySet(uint index, T value);
+            public abstract bool TrySet(uint index, T value, out bool isNew);
         }
     }
 }
