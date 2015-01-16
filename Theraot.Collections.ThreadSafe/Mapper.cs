@@ -16,6 +16,11 @@ namespace Theraot.Collections.ThreadSafe
             _root = new Branch(0);
         }
 
+        private interface INode
+        {
+            // Empty
+        }
+
         /// <summary>
         /// Gets the number of items actually contained.
         /// </summary>
@@ -58,6 +63,24 @@ namespace Theraot.Collections.ThreadSafe
             if (isNew)
             {
                 Interlocked.Increment(ref _count);
+            }
+        }
+
+        private struct Leaf : INode
+        {
+            private readonly T _value;
+
+            public Leaf(T value)
+            {
+                _value = value;
+            }
+
+            public T Value
+            {
+                get
+                {
+                    return _value;
+                }
             }
         }
 
@@ -218,29 +241,6 @@ namespace Theraot.Collections.ThreadSafe
                     }
                 }
             }
-        }
-
-        private class Leaf : INode
-        {
-            private readonly T _value;
-
-            public Leaf(T value)
-            {
-                _value = value;
-            }
-
-            public T Value
-            {
-                get
-                {
-                    return _value;
-                }
-            }
-        }
-
-        private interface INode
-        {
-            // Empty
         }
     }
 }
