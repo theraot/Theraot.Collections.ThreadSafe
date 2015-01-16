@@ -1,4 +1,7 @@
-﻿namespace Theraot.Collections.ThreadSafe
+﻿using System;
+using System.Threading;
+
+namespace Theraot.Collections.ThreadSafe
 {
     public class Mapper<T>
     {
@@ -86,11 +89,13 @@
         private class Leaf : Node
         {
             private T _value;
+            private readonly object _synclock;
 
             public Leaf(T value, uint index)
                 : base(index)
             {
                 _value = value;
+                _synclock = new object();
             }
 
             public override bool TryGet(uint index, out T value)
@@ -108,9 +113,23 @@
             {
                 if (index == Index)
                 {
-                    // TODO: Race condition, report true only on winning thread
-                    _value = value;
-                    return true;
+                    bool got = false;
+                    try
+                    {
+                        if (Monitor.TryEnter(_synclock))
+                        {
+                            got = true;
+                            _value = value;
+                            return true;
+                        }
+                    }
+                    finally
+                    {
+                        if (got)
+                        {
+                            Monitor.Exit(_synclock);
+                        }
+                    }
                 }
                 return false;
             }
