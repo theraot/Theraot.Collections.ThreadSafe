@@ -161,39 +161,41 @@ namespace Theraot.Collections.ThreadSafe
 
             public override bool TryGet(uint index, out T value)
             {
-                if (index == Index)
+                if (index != Index)
                 {
-                    value = _value;
-                    return true;
+                    // This fails because the index was wrong
+                    value = default(T);
+                    return false;
                 }
-                value = default(T);
-                // This fails because the index was wrong
-                return false;
+                value = _value;
+                return true;
             }
 
             public override bool TrySet(uint index, T value)
             {
-                if (index == Index)
+                if (index != Index)
                 {
-                    bool got = false;
-                    try
+                    // This fails because the index was wrong
+                    return false;
+                }
+                var got = false;
+                try
+                {
+                    if (Monitor.TryEnter(_synclock))
                     {
-                        if (Monitor.TryEnter(_synclock))
-                        {
-                            got = true;
-                            _value = value;
-                            return true;
-                        }
-                    }
-                    finally
-                    {
-                        if (got)
-                        {
-                            Monitor.Exit(_synclock);
-                        }
+                        got = true;
+                        _value = value;
+                        return true;
                     }
                 }
-                // This fails because the index was wrong or because another thread took the adventage
+                finally
+                {
+                    if (got)
+                    {
+                        Monitor.Exit(_synclock);
+                    }
+                }
+                // This fails because another thread took the adventage
                 return false;
             }
         }
