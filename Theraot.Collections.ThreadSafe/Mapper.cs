@@ -54,9 +54,6 @@ namespace Theraot.Collections.ThreadSafe
 
             public override bool TryGet(uint index, out T value)
             {
-                // For the root all the indexes are valid
-                // If this is not the root, it must has been got via Map
-                // If this was got via Map, the index must be valid
                 value = default(T);
                 // Get the target branch to which to insert
                 Branch branch = Map(index, true);
@@ -82,14 +79,11 @@ namespace Theraot.Collections.ThreadSafe
                 }
             }
 
-            public override void TrySet(uint index, T value, out bool isNew)
+            public void TrySet(uint index, T value, out bool isNew)
             {
-                // For the root all the indexes are valid
-                // If this is not the root, it must has been got via Map
-                // If this was got via Map, the index must be valid
                 // Get the target branch to which to insert
                 Branch branch = Map(index, false);
-                // The branch will only be null if we request readonly
+                // The branch will only be null if we request readonly - we did not
                 var children = branch._children;
                 var subindex = (int)((index >> branch._offset) & 0xF);
                 // Insert leaf
@@ -193,13 +187,11 @@ namespace Theraot.Collections.ThreadSafe
 
         private class Leaf : Node
         {
-            private readonly object _synclock;
-            private T _value;
+            private readonly T _value;
 
             public Leaf(T value)
             {
                 _value = value;
-                _synclock = new object();
             }
 
             public override bool TryGet(uint index, out T value)
@@ -208,40 +200,11 @@ namespace Theraot.Collections.ThreadSafe
                 value = _value;
                 return true;
             }
-
-            public override void TrySet(uint index, T value, out bool isNew)
-            {
-                // We assume that the leaf only exists because it has a vale...
-                // So, no. This is not new.
-                // We assume the index is right
-                isNew = false;
-                var got = false;
-                try
-                {
-                    if (Monitor.TryEnter(_synclock))
-                    {
-                        got = true;
-                        _value = value;
-                        // We did write, the operation was a success
-                    }
-                }
-                finally
-                {
-                    if (got)
-                    {
-                        Monitor.Exit(_synclock);
-                    }
-                }
-                // If we did not write, we pretend that we did but the value was replaced by another thread
-                // For all the caller knows the operations was a success
-            }
         }
 
         private abstract class Node
         {
             public abstract bool TryGet(uint index, out T value);
-
-            public abstract void TrySet(uint index, T value, out bool isNew);
         }
     }
 }
