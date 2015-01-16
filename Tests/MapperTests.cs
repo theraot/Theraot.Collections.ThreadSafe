@@ -15,12 +15,12 @@ namespace Tests
             int result;
             bool isNew;
 
-            Assert.IsTrue(mapper.TrySet(0, Input_A, out isNew));
+            mapper.TrySet(0, Input_A, out isNew);
             Assert.IsTrue(isNew);
             Assert.IsTrue(mapper.TryGet(0, out result));
             Assert.AreEqual(Input_A, result);
 
-            Assert.IsTrue(mapper.TrySet(0, Input_B, out isNew));
+            mapper.TrySet(0, Input_B, out isNew);
             Assert.IsFalse(isNew);
             Assert.IsTrue(mapper.TryGet(0, out result));
             Assert.AreEqual(Input_B, result);
@@ -42,7 +42,7 @@ namespace Tests
             const int Input = 42;
             int result;
             bool isNew;
-            Assert.IsTrue(mapper.TrySet(0, Input, out isNew));
+            mapper.TrySet(0, Input, out isNew);
             Assert.IsTrue(isNew);
             Assert.IsTrue(mapper.TryGet(0, out result));
             Assert.AreEqual(Input, result);
@@ -90,7 +90,7 @@ namespace Tests
             foreach (var pair in data)
             {
                 bool isNew;
-                Assert.IsTrue(mapper.TrySet(pair[0], pair[1], out isNew));
+                mapper.TrySet(pair[0], pair[1], out isNew);
                 Assert.IsTrue(isNew);
             }
             foreach (var pair in data)

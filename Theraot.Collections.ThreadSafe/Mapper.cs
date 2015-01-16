@@ -32,14 +32,13 @@ namespace Theraot.Collections.ThreadSafe
             return _root.TryGet(unchecked((uint)index), out value);
         }
 
-        public bool TrySet(int index, T value, out bool isNew)
+        public void TrySet(int index, T value, out bool isNew)
         {
-            var result = _root.TrySet(unchecked((uint)index), value, out isNew);
+            _root.TrySet(unchecked((uint)index), value, out isNew);
             if (isNew)
             {
                 Interlocked.Increment(ref _count);
             }
-            return result;
         }
 
         private class Branch : Node
@@ -63,13 +62,10 @@ namespace Theraot.Collections.ThreadSafe
 
             public override bool TryGet(uint index, out T value)
             {
+                // For the root all the indexes are valid
+                // If this is not the root, it must has been got via Map
+                // If this was got via Map, the index must be valid
                 value = default(T);
-                if ((index & _mask) != Index)
-                {
-                    // This fails because the index was wrong
-                    // On failure, isNew must be false
-                    return false;
-                }
                 // Get the target branch to which to insert
                 Branch branch = Map(index, true);
                 // Check if we got a branch
@@ -94,15 +90,11 @@ namespace Theraot.Collections.ThreadSafe
                 }
             }
 
-            public override bool TrySet(uint index, T value, out bool isNew)
+            public override void TrySet(uint index, T value, out bool isNew)
             {
-                if ((index & _mask) != Index)
-                {
-                    // This fails because the index was wrong
-                    // On failure, isNew must be false
-                    isNew = false;
-                    return false;
-                }
+                // For the root all the indexes are valid
+                // If this is not the root, it must has been got via Map
+                // If this was got via Map, the index must be valid
                 // Get the target branch to which to insert
                 Branch branch = Map(index, false);
                 // The branch will only be null if we request readonly
@@ -113,8 +105,7 @@ namespace Theraot.Collections.ThreadSafe
                 // if this returns true, the new item was inserted, so isNew is set to true
                 // if this returns false, some other thread inserted first... so isNew is set to false
                 // yet we pretend we inserted first and the value was replaced by the other thread
-                // So we say we did it regardless
-                return true;
+                // So we say the operation was a success regardless
             }
 
             private Branch Map(uint index, bool readOnly)
@@ -222,26 +213,17 @@ namespace Theraot.Collections.ThreadSafe
 
             public override bool TryGet(uint index, out T value)
             {
-                if (index != Index)
-                {
-                    // This fails because the index was wrong
-                    value = default(T);
-                    return false;
-                }
+                // We assume the index is right
                 value = _value;
                 return true;
             }
 
-            public override bool TrySet(uint index, T value, out bool isNew)
+            public override void TrySet(uint index, T value, out bool isNew)
             {
                 // We assume that the leaf only exists because it has a vale...
                 // So, no. This is not new.
+                // We assume the index is right
                 isNew = false;
-                if (index != Index)
-                {
-                    // This fails because the index was wrong
-                    return false;
-                }
                 var got = false;
                 try
                 {
@@ -249,7 +231,7 @@ namespace Theraot.Collections.ThreadSafe
                     {
                         got = true;
                         _value = value;
-                        return true;
+                        // We did write, the operation was a success
                     }
                 }
                 finally
@@ -259,8 +241,8 @@ namespace Theraot.Collections.ThreadSafe
                         Monitor.Exit(_synclock);
                     }
                 }
-                // This fails because another thread took the adventage
-                return false;
+                // If we did not write, we pretend that we did but the value was replaced by another thread
+                // For all the caller knows the operations was a success
             }
         }
 
@@ -283,7 +265,7 @@ namespace Theraot.Collections.ThreadSafe
 
             public abstract bool TryGet(uint index, out T value);
 
-            public abstract bool TrySet(uint index, T value, out bool isNew);
+            public abstract void TrySet(uint index, T value, out bool isNew);
         }
     }
 }
