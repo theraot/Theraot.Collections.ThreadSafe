@@ -7,21 +7,39 @@ namespace Theraot.Collections.ThreadSafe
         private const int INT_Capacity = 16;
         private const int INT_MaxOffset = 32;
         private const int INT_OffsetStep = 4;
-        private readonly Branch root;
+        private readonly Branch _root;
+        private int _count;
 
         public Mapper()
         {
-            root = new Branch(0, 0);
+            _count = 0;
+            _root = new Branch(0, 0);
+        }
+
+        /// <summary>
+        /// Gets the number of items actually contained.
+        /// </summary>
+        public int Count
+        {
+            get
+            {
+                return _count;
+            }
         }
 
         public bool TryGet(int index, out T value)
         {
-            return root.TryGet(unchecked((uint)index), out value);
+            return _root.TryGet(unchecked((uint)index), out value);
         }
 
         public bool TrySet(int index, T value, out bool isNew)
         {
-            return root.TrySet(unchecked((uint)index), value, out isNew);
+            var result = _root.TrySet(unchecked((uint)index), value, out isNew);
+            if (isNew)
+            {
+                Interlocked.Increment(ref _count);
+            }
+            return result;
         }
 
         private class Branch : Node
