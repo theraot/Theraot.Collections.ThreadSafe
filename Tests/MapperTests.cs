@@ -12,7 +12,9 @@ namespace Tests
             var mapper = new Mapper<int>();
             const int Input = 42;
             int result;
-            Assert.IsTrue(mapper.TrySet(0, Input));
+            bool isNew;
+            Assert.IsTrue(mapper.TrySet(0, Input, out isNew));
+            Assert.IsTrue(isNew);
             Assert.IsTrue(mapper.TryGet(0, out result));
             Assert.AreEqual(Input, result);
         }
@@ -58,7 +60,9 @@ namespace Tests
             };
             foreach (var pair in data)
             {
-                Assert.IsTrue(mapper.TrySet(pair[0], pair[1]));
+                bool isNew;
+                Assert.IsTrue(mapper.TrySet(pair[0], pair[1], out isNew));
+                Assert.IsTrue(isNew);
             }
             foreach (var pair in data)
             {

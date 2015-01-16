@@ -44,15 +44,15 @@ namespace Theraot.Collections.ThreadSafe
 
         private class Branch : Node
         {
+            private readonly Bucket<Node> _children;
             private readonly uint _mask;
             private readonly int _offset;
-            private readonly Bucket<Node> children;
 
             public Branch(int offset, uint index)
                 : this(unchecked((uint)(1 << offset) - 1), index)
             {
                 _offset = offset;
-                children = new Bucket<Node>(INT_Capacity);
+                _children = new Bucket<Node>(INT_Capacity);
             }
 
             private Branch(uint mask, uint index)
@@ -68,7 +68,7 @@ namespace Theraot.Collections.ThreadSafe
                 {
                     var subindex = (int)((index >> _offset) & 0xF);
                     Node node;
-                    if (children.TryGet(subindex, out node))
+                    if (_children.TryGet(subindex, out node))
                     {
                         return node.TryGet(index, out value);
                     }
@@ -85,85 +85,104 @@ namespace Theraot.Collections.ThreadSafe
                     isNew = false;
                     return false;
                 }
-                Node node;
+                // Get the target branch to which to insert
+                Branch branch = Map(index, false);
+                // The branch will only be null if we request readonly
+                var children = branch._children;
+                var subindex = (int)((index >> branch._offset) & 0xF);
+                // Insert leaf
+                isNew = children.Insert(subindex, new Leaf(value, index));
+                // if this returns true, the new item was inserted, so isNew is set to true
+                // if this returns false, some other thread inserted first... so isNew is set to false
+                // yet we pretend we inserted first and the value was replaced by the other thread
+                // So we say we did it regardless
+                return true;
+            }
+
+            private Branch Map(uint index, bool readOnly)
+            {
+                Node result;
                 // Calculate the index of the target child
                 var subindex = (int)((index >> _offset) & 0xF);
                 // Retrieve the already present branch
-                if (children.TryGet(subindex, out node))
+                if (_children.TryGet(subindex, out result))
                 {
                     // We success in retrieving the branch
-                    // Write to it
-                    if (node.TrySet(index, value, out isNew))
+                    var branch = result as Branch;
+                    if (branch == null)
                     {
-                        // We success
-                        return true;
+                        // Return this
+                        return this;
                     }
                     else
                     {
-                        // We were unable to write
-                        return false;
+                        // Delegate to it
+                        return branch.Map(index, readOnly);
                     }
                 }
                 else
                 {
                     // We fail to retrieve the branch because it is not there
-                    // Try to insert a new one
-                    if (_offset == INT_MaxOffset)
+                    if (readOnly)
                     {
-                        // We nned to insert a leaf
-                        children.Insert(subindex, new Leaf(value, index));
-                        // if this returns true, the new item was inserted
-                        // if this returns false, some other thread inserted first...
-                        // yet we pretend we inserted first and the value was replaced by the other thread
-                        // So we say we did it
-                        isNew = true;
-                        return true;
+                        // We cannot write, so we don't attempt to isnert a new node
+                        // return null instead
+                        return null;
                     }
                     else
                     {
-                        // We need to insert a branch
-                        // Create the branch to insert
-                        var branch = new Branch(_offset + INT_OffsetStep, index);
-                    again:
-                        // Attempt to insert the created branch
-                        if (children.Insert(subindex, branch))
+                        // Try to insert a new one
+                        if (_offset == INT_MaxOffset)
                         {
-                            // We success in inserting the branch
-                            // Now write to the inserted branch
-                            if (branch.TrySet(index, value, out isNew))
-                            {
-                                // We success
-                                return true;
-                            }
-                            else
-                            {
-                                // We were unable to write
-                                return false;
-                            }
+                            // We need to insert a leaf
+                            // It is not responsability of this method to create leafs
+                            return this;
                         }
                         else
                         {
-                            // We did fail in inserting the branch because another thread inserted one
-                            // Note: We do not jump out to start over...
-                            //       because we have already created a branch, and we may need it
-                            // Retrieve the already present branch
-                            if (children.TryGet(subindex, out node))
+                            // We need to insert a branch
+                            // Create the branch to insert
+                            var branch = new Branch(_offset + INT_OffsetStep, index);
+                        again:
+                            // Attempt to insert the created branch
+                            if (_children.Insert(subindex, branch))
                             {
-                                // We success in retrieving the branch
-                                // Write to it
-                                node.TrySet(index, value, out isNew);
-                                // We are leaking the Branch
-                                // TODO: solve leak
-                                return true;
+                                // We success in inserting the branch
+                                // Delegate to the new branch
+                                return branch.Map(index, false);
                             }
                             else
                             {
-                                // We fail to retrieve the branch because another thread must have removed it
-                                // Start over, we have a chance to insert the branch back again
-                                // Jump back to where we just created the branch to attemp to insert it again
-                                goto again;
-                                // This creates a loop
-                                // TODO: solve loop
+                                // We did fail in inserting the branch because another thread inserted one
+                                // Note: We do not jump out to start over...
+                                //       because we have already created a branch, and we may need it
+                                // Retrieve the already present branch
+                                if (_children.TryGet(subindex, out result))
+                                {
+                                    // We success in retrieving the branch
+                                    // We are leaking the Branch
+                                    // TODO: solve leak
+                                    branch = result as Branch;
+                                    if (branch == null)
+                                    {
+                                        // Return this
+                                        return this;
+                                    }
+                                    else
+                                    {
+                                        // Delegate to it
+                                        return branch.Map(index, true);
+                                    }
+                                }
+                                else
+                                {
+                                    // We fail to retrieve the branch because another thread must have removed it
+                                    // Start over, we have a chance to insert the branch back again
+                                    // Jump back to where we just created the branch to attempt to insert it again
+                                    goto again;
+                                    // This creates a loop
+                                    // TODO: solve loop
+                                }
                             }
                         }
                     }
