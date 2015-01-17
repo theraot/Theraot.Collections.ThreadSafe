@@ -15,7 +15,7 @@ namespace Theraot.Collections.ThreadSafe
         public Mapper()
         {
             _count = 0;
-            _root = new Branch(0);
+            _root = new Branch(INT_MaxOffset - INT_OffsetStep);
         }
 
         private interface INode
@@ -150,7 +150,7 @@ namespace Theraot.Collections.ThreadSafe
                 Branch branch = Map(index, false);
                 // The branch will only be null if we request readonly - we did not
                 var children = branch._children;
-                var subindex = (int)((index >> branch._offset) & 0xF);
+                var subindex = GetSubindex(index, branch);
                 INode _previous;
                 var isNew = children.Exchange(subindex, new Leaf(item), out _previous);
                 previous = isNew ? default(T) : ((Leaf)_previous).Value;
@@ -159,7 +159,7 @@ namespace Theraot.Collections.ThreadSafe
 
             public IEnumerator<T> GetEnumerator()
             {
-                if (_offset == INT_MaxOffset)
+                if (_offset == 0)
                 {
                     foreach (var child in _children)
                     {
@@ -199,7 +199,7 @@ namespace Theraot.Collections.ThreadSafe
                     // We got a branch, attempt to read it
                     INode node;
                     var children = branch._children;
-                    var subindex = (int)((index >> branch._offset) & 0xF);
+                    var subindex = GetSubindex(index, branch);
                     if (children.TryGet(subindex, out node))
                     {
                         // We found the leaf, read it to get the value
@@ -217,7 +217,7 @@ namespace Theraot.Collections.ThreadSafe
                 Branch branch = Map(index, false);
                 // The branch will only be null if we request readonly - we did not
                 var children = branch._children;
-                var subindex = (int)((index >> branch._offset) & 0xF);
+                var subindex = GetSubindex(index, branch);
                 // Insert leaf
                 children.Set(subindex, new Leaf(value), out isNew);
                 // if this returns true, the new item was inserted, so isNew is set to true
@@ -226,11 +226,16 @@ namespace Theraot.Collections.ThreadSafe
                 // So we say the operation was a success regardless
             }
 
+            private static int GetSubindex(uint index, Branch branch)
+            {
+                return (int)((index >> branch._offset) & 0xF);
+            }
+
             private Branch Map(uint index, bool readOnly)
             {
                 INode result;
                 // Calculate the index of the target child
-                var subindex = (int)((index >> _offset) & 0xF);
+                var subindex = GetSubindex(index, this);
                 // Retrieve the already present branch
                 if (_children.TryGet(subindex, out result))
                 {
@@ -259,7 +264,7 @@ namespace Theraot.Collections.ThreadSafe
                     else
                     {
                         // Try to insert a new one
-                        if (_offset == INT_MaxOffset)
+                        if (_offset == 0)
                         {
                             // We need to insert a leaf
                             // It is not responsability of this method to create leafs
@@ -269,7 +274,7 @@ namespace Theraot.Collections.ThreadSafe
                         {
                             // We need to insert a branch
                             // Create the branch to insert
-                            var branch = new Branch(_offset + INT_OffsetStep);
+                            var branch = new Branch(_offset - INT_OffsetStep);
                         again:
                             // Attempt to insert the created branch
                             if (_children.Insert(subindex, branch))
