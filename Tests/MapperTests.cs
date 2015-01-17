@@ -1,4 +1,5 @@
 ﻿using NUnit.Framework;
+using System;
 using Theraot.Collections.ThreadSafe;
 
 namespace Tests
@@ -98,7 +99,7 @@ namespace Tests
                 new[] { 4583, 17329 },
                 new[] { 26648, 28111 },
                 new[] { 6948, 32130 },
-                new[] { 00498,   4487 },
+                new[] { 498, 4487 },
                 new[] { 31105, 6313 },
                 new[] { 26398, 16772 },
                 new[] { 3644, 32520 },
@@ -131,6 +132,14 @@ namespace Tests
                 Assert.IsTrue(mapper.TryGet(pair[0], out result));
                 Assert.AreEqual(pair[1], result);
             }
+            Array.Sort(data, (pairA, pairB) => pairA[0].CompareTo(pairB[0]));
+            var index = 0;
+            foreach (var item in mapper)
+            {
+                Assert.AreEqual(data[index][1], item);
+                index++;
+            }
+            Assert.AreEqual(mapper.Count, index);
         }
     }
 }

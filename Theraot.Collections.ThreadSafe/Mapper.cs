@@ -1,8 +1,10 @@
-﻿using System.Threading;
+﻿using System;
+using System.Collections.Generic;
+using System.Threading;
 
 namespace Theraot.Collections.ThreadSafe
 {
-    public class Mapper<T>
+    public class Mapper<T> : IEnumerable<T>
     {
         private const int INT_Capacity = 16;
         private const int INT_MaxOffset = 32;
@@ -33,6 +35,42 @@ namespace Theraot.Collections.ThreadSafe
         }
 
         /// <summary>
+        /// Copies the items to a compatible one-dimensional array, starting at the specified index of the target array.
+        /// </summary>
+        /// <param name="array">The array.</param>
+        /// <param name="arrayIndex">Index of the array.</param>
+        /// <exception cref="System.ArgumentNullException">array</exception>
+        /// <exception cref="System.ArgumentOutOfRangeException">arrayIndex;Non-negative number is required.</exception>
+        /// <exception cref="System.ArgumentException">array;The array can not contain the number of elements.</exception>
+        public void CopyTo(T[] array, int arrayIndex)
+        {
+            if (array == null)
+            {
+                throw new ArgumentNullException("array");
+            }
+            if (arrayIndex < 0)
+            {
+                throw new ArgumentOutOfRangeException("arrayIndex", "Non-negative number is required.");
+            }
+            if (_count > array.Length - arrayIndex)
+            {
+                throw new ArgumentException("The array can not contain the number of elements.", "array");
+            }
+            try
+            {
+                foreach (var entry in _root)
+                {
+                    array[arrayIndex] = entry;
+                    arrayIndex++;
+                }
+            }
+            catch (IndexOutOfRangeException exception)
+            {
+                throw new ArgumentOutOfRangeException("array", exception.Message);
+            }
+        }
+
+        /// <summary>
         /// Sets the item at the specified index.
         /// </summary>
         /// <param name="index">The index.</param>
@@ -50,6 +88,16 @@ namespace Theraot.Collections.ThreadSafe
                 return true;
             }
             return false;
+        }
+
+        public IEnumerator<T> GetEnumerator()
+        {
+            return _root.GetEnumerator();
+        }
+
+        System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator()
+        {
+            return GetEnumerator();
         }
 
         public bool TryGet(int index, out T value)
@@ -84,7 +132,7 @@ namespace Theraot.Collections.ThreadSafe
             }
         }
 
-        private class Branch : INode
+        private class Branch : INode, IEnumerable<T>
         {
             private readonly Bucket<INode> _children;
 
@@ -107,6 +155,32 @@ namespace Theraot.Collections.ThreadSafe
                 var isNew = children.Exchange(subindex, new Leaf(item), out _previous);
                 previous = isNew ? default(T) : ((Leaf)_previous).Value;
                 return isNew;
+            }
+
+            public IEnumerator<T> GetEnumerator()
+            {
+                if (_offset == INT_MaxOffset)
+                {
+                    foreach (var child in _children)
+                    {
+                        yield return ((Leaf)child).Value;
+                    }
+                }
+                else
+                {
+                    foreach (var child in _children)
+                    {
+                        foreach (var item in ((Branch)child))
+                        {
+                            yield return item;
+                        }
+                    }
+                }
+            }
+
+            System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator()
+            {
+                return GetEnumerator();
             }
 
             public bool TryGet(uint index, out T value)
