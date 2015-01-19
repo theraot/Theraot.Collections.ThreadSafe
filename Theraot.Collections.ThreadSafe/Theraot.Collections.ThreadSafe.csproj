@@ -39,6 +39,7 @@
     <Compile Include="Bucket.cs" />
     <Compile Include="BucketHelper.cs" />
     <Compile Include="CircularBucket.cs" />
+    <Compile Include="Mapper.Branch.cs" />
     <Compile Include="Mapper.cs" />
     <Compile Include="NumericHelper.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
