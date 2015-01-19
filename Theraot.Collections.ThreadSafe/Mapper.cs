@@ -79,7 +79,6 @@ namespace Theraot.Collections.ThreadSafe
         /// <returns>
         ///   <c>true</c> if the item was new; otherwise, <c>false</c>.
         /// </returns>
-        /// <exception cref="System.ArgumentOutOfRangeException">index;index must be greater or equal to 0 and less than capacity</exception>
         public bool Exchange(int index, T item, out T previous)
         {
             if (_root.Exchange(unchecked((uint)index), item, out previous))
@@ -88,6 +87,11 @@ namespace Theraot.Collections.ThreadSafe
                 return true;
             }
             return false;
+        }
+
+        public IEnumerator<T> GetEnumerator()
+        {
+            return _root.GetEnumerator();
         }
 
         /// <summary>
@@ -114,11 +118,6 @@ namespace Theraot.Collections.ThreadSafe
             {
                 return false;
             }
-        }
-
-        public IEnumerator<T> GetEnumerator()
-        {
-            return _root.GetEnumerator();
         }
 
         System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator()
