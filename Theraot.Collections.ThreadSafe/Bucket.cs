@@ -164,53 +164,6 @@ namespace Theraot.Collections.ThreadSafe
         }
 
         /// <summary>
-        /// Gets the values contained in this object.
-        /// </summary>
-        public IList<T> GetValues()
-        {
-            var result = new List<T>();
-            for (int index = 0; index < _entries.Length; index++)
-            {
-                var entry = Interlocked.CompareExchange(ref _entries[index], null, null);
-                if (entry != null)
-                {
-                    if (!ReferenceEquals(entry, BucketHelper.Null))
-                    {
-                        result.Add((T)entry);
-                    }
-                }
-            }
-            return result;
-        }
-
-        /// <summary>
-        /// Gets the values contained in this object.
-        /// </summary>
-        public IList<TOutput> GetValues<TOutput>(Converter<T, TOutput> converter)
-        {
-            if (ReferenceEquals(converter, null))
-            {
-                throw new ArgumentNullException("converter");
-            }
-            else
-            {
-                var result = new List<TOutput>();
-                for (int index = 0; index < _entries.Length; index++)
-                {
-                    var entry = Interlocked.CompareExchange(ref _entries[index], null, null);
-                    if (entry != null)
-                    {
-                        if (!ReferenceEquals(entry, BucketHelper.Null))
-                        {
-                            result.Add(converter.Invoke((T)entry));
-                        }
-                    }
-                }
-                return result;
-            }
-        }
-
-        /// <summary>
         /// Inserts the item at the specified index.
         /// </summary>
         /// <param name="index">The index.</param>
