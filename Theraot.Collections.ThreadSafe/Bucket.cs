@@ -363,6 +363,17 @@ namespace Theraot.Collections.ThreadSafe
             }
         }
 
+        internal bool InsertExtracted(int index, T item)
+        {
+            object _previous;
+            if (InsertExtracted(index, item, out _previous))
+            {
+                Interlocked.Increment(ref _count);
+                return true;
+            }
+            return false;
+        }
+
         internal bool TryGetExtracted(int index, out T value)
         {
             var entry = Interlocked.CompareExchange(ref _entries[index], null, null);

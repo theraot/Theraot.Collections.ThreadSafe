@@ -165,7 +165,7 @@ namespace Theraot.Collections.ThreadSafe
                             var branch = new Branch(_offset - INT_OffsetStep);
                         again:
                             // Attempt to insert the created branch
-                            if (_children.Insert(subindex, branch))
+                            if (_children.InsertExtracted(subindex, branch))
                             {
                                 // We success in inserting the branch
                                 // Delegate to the new branch
