@@ -1,10 +1,8 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Threading;
+﻿using System.Collections.Generic;
 
 namespace Theraot.Collections.ThreadSafe
 {
-    public partial class Mapper<T> : IEnumerable<T>
+    public partial class Mapper<T>
     {
         private class Branch : INode, IEnumerable<T>
         {
@@ -44,7 +42,7 @@ namespace Theraot.Collections.ThreadSafe
                 {
                     foreach (var child in _children)
                     {
-                        foreach (var item in ((Branch)child))
+                        foreach (var item in (Branch)child)
                         {
                             yield return item;
                         }
