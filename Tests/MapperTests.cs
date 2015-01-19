@@ -82,6 +82,11 @@ namespace Tests
             Assert.IsTrue(mapper.TryGet(0, out result));
             Assert.AreEqual(Input_A, result);
 
+            Assert.IsFalse(mapper.Insert(0, Input_A, out result));
+            Assert.AreEqual(Input_A, result);
+            Assert.IsTrue(mapper.TryGet(0, out result));
+            Assert.AreEqual(Input_A, result);
+
             Assert.AreEqual(1, mapper.Count);
         }
 
