@@ -50,6 +50,22 @@ namespace Theraot.Collections.ThreadSafe
                 }
             }
 
+            public bool Insert(uint index, T item, out T previous)
+            {
+                // Get the target branch to which to insert
+                Branch branch = Map(index, false);
+                // The branch will only be null if we request readonly - we did not
+                var children = branch._children;
+                var subindex = GetSubindex(index, branch);
+                // Insert leaf
+                INode previousLeaf;
+                var result = children.InsertExtracted(subindex, new Leaf(item), out previousLeaf);
+                previous = result ? default(T) : ((Leaf)previousLeaf).Value;
+                return result;
+                // if this returns true, the new item was inserted, so there was no previous item
+                // if this returns false, something was inserted first... so we get the previous item
+            }
+
             System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator()
             {
                 return GetEnumerator();

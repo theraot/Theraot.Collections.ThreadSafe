@@ -67,6 +67,25 @@ namespace Tests
         }
 
         [Test]
+        public void Insert()
+        {
+            var mapper = new Mapper<int>();
+            const int Input_A = 21;
+            const int Input_B = 42;
+            int result;
+
+            Assert.IsTrue(mapper.Insert(0, Input_A));
+            Assert.IsTrue(mapper.TryGet(0, out result));
+            Assert.AreEqual(Input_A, result);
+
+            Assert.IsFalse(mapper.Insert(0, Input_B));
+            Assert.IsTrue(mapper.TryGet(0, out result));
+            Assert.AreEqual(Input_A, result);
+
+            Assert.AreEqual(1, mapper.Count);
+        }
+
+        [Test]
         public void SetAndGet()
         {
             var mapper = new Mapper<int>();

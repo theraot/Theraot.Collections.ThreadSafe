@@ -90,6 +90,32 @@ namespace Theraot.Collections.ThreadSafe
             return false;
         }
 
+        /// <summary>
+        /// Inserts the item at the specified index.
+        /// </summary>
+        /// <param name="index">The index.</param>
+        /// <param name="item">The item.</param>
+        /// <returns>
+        ///   <c>true</c> if the item was inserted; otherwise, <c>false</c>.
+        /// </returns>
+        /// <remarks>
+        /// The insertion can fail if the index is already used or is being written by another thread.
+        /// If the index is being written it can be understood that the insert operation happened before but the item was overwritten or removed.
+        /// </remarks>
+        public bool Insert(int index, T item)
+        {
+            T previous;
+            if (_root.Insert(unchecked((uint)index), item, out previous))
+            {
+                Interlocked.Increment(ref _count);
+                return true;
+            }
+            else
+            {
+                return false;
+            }
+        }
+
         public IEnumerator<T> GetEnumerator()
         {
             return _root.GetEnumerator();
