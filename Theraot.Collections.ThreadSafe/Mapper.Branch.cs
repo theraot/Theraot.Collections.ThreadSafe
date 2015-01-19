@@ -20,7 +20,7 @@ namespace Theraot.Collections.ThreadSafe
             {
                 // Get the target branch with which to exchange
                 Branch branch = Map(index, false);
-                // The branch will only be null if we request readonly - we did not
+                // The branch can only be null if we request readonly - we did not
                 var children = branch._children;
                 var subindex = GetSubindex(index, branch);
                 INode _previous;
@@ -54,7 +54,7 @@ namespace Theraot.Collections.ThreadSafe
             {
                 // Get the target branch to which to insert
                 Branch branch = Map(index, false);
-                // The branch will only be null if we request readonly - we did not
+                // The branch can only be null if we request readonly - we did not
                 var children = branch._children;
                 var subindex = GetSubindex(index, branch);
                 // Insert leaf
@@ -103,7 +103,7 @@ namespace Theraot.Collections.ThreadSafe
             {
                 // Get the target branch to which to insert
                 Branch branch = Map(index, false);
-                // The branch will only be null if we request readonly - we did not
+                // The branch can only be null if we request readonly - we did not
                 var children = branch._children;
                 var subindex = GetSubindex(index, branch);
                 // Insert leaf
