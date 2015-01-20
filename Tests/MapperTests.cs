@@ -30,6 +30,29 @@ namespace Tests
         }
 
         [Test]
+        public void CopyTo()
+        {
+            var mapper = new Mapper<int>();
+            var data = GetSampleData();
+            foreach (var pair in data)
+            {
+                bool isNew;
+                mapper.TrySet(pair[0], pair[1], out isNew);
+                Assert.IsTrue(isNew);
+            }
+            Assert.AreEqual(data.Length, mapper.Count);
+            var target = new int[data.Length];
+            Array.Sort(data, (pairA, pairB) => pairA[0].CompareTo(pairB[0]));
+            mapper.CopyTo(target, 0);
+            for (int index = 0; index < data.Length; index++)
+            {
+                var pair = data[index];
+                var item = target[index];
+                Assert.AreEqual(pair[1], item);
+            }
+        }
+
+        [Test]
         public void Exchange()
         {
             var mapper = new Mapper<int>();
@@ -108,7 +131,33 @@ namespace Tests
         public void SparseData()
         {
             var mapper = new Mapper<int>();
-            var data = new[]
+            var data = GetSampleData();
+            foreach (var pair in data)
+            {
+                bool isNew;
+                mapper.TrySet(pair[0], pair[1], out isNew);
+                Assert.IsTrue(isNew);
+            }
+            Assert.AreEqual(data.Length, mapper.Count);
+            foreach (var pair in data)
+            {
+                int result;
+                Assert.IsTrue(mapper.TryGet(pair[0], out result));
+                Assert.AreEqual(pair[1], result);
+            }
+            Array.Sort(data, (pairA, pairB) => pairA[0].CompareTo(pairB[0]));
+            var index = 0;
+            foreach (var item in mapper)
+            {
+                Assert.AreEqual(data[index][1], item);
+                index++;
+            }
+            Assert.AreEqual(mapper.Count, index);
+        }
+
+        private static int[][] GetSampleData()
+        {
+            return new[]
             {
                 new[] { 24074, 11156 },
                 new[] { 22731, 17638 },
@@ -143,27 +192,6 @@ namespace Tests
                 new[] { 27450, 15232 },
                 new[] { 30662, 24366 }
             };
-            foreach (var pair in data)
-            {
-                bool isNew;
-                mapper.TrySet(pair[0], pair[1], out isNew);
-                Assert.IsTrue(isNew);
-            }
-            Assert.AreEqual(data.Length, mapper.Count);
-            foreach (var pair in data)
-            {
-                int result;
-                Assert.IsTrue(mapper.TryGet(pair[0], out result));
-                Assert.AreEqual(pair[1], result);
-            }
-            Array.Sort(data, (pairA, pairB) => pairA[0].CompareTo(pairB[0]));
-            var index = 0;
-            foreach (var item in mapper)
-            {
-                Assert.AreEqual(data[index][1], item);
-                index++;
-            }
-            Assert.AreEqual(mapper.Count, index);
         }
     }
 }
