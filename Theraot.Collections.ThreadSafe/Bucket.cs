@@ -33,7 +33,7 @@ namespace Theraot.Collections.ThreadSafe
         {
             if (!AppDomain.CurrentDomain.IsFinalizingForUnload())
             {
-                RecycleExtracted();
+                RecyclePrivate();
             }
         }
 
@@ -123,19 +123,7 @@ namespace Theraot.Collections.ThreadSafe
             }
             else
             {
-                previous = default(T);
-                object _previous;
-                ExchangeExtracted(index, item, out _previous);
-                if (_previous == null)
-                {
-                    Interlocked.Increment(ref _count);
-                    return true;
-                }
-                if (!ReferenceEquals(_previous, BucketHelper.Null))
-                {
-                    previous = (T)_previous;
-                }
-                return false;
+                return ExchangeInternal(index, item, out previous);
             }
         }
 
@@ -184,16 +172,7 @@ namespace Theraot.Collections.ThreadSafe
             }
             else
             {
-                object _previous;
-                if (InsertExtracted(index, item, out _previous))
-                {
-                    Interlocked.Increment(ref _count);
-                    return true;
-                }
-                else
-                {
-                    return false;
-                }
+                return InsertInternal(index, item);
             }
         }
 
@@ -219,7 +198,7 @@ namespace Theraot.Collections.ThreadSafe
             }
             else
             {
-                return InsertExtracted(index, item, out previous);
+                return InsertInternal(index, item, out previous);
             }
         }
 
@@ -240,7 +219,7 @@ namespace Theraot.Collections.ThreadSafe
             else
             {
                 object _previous;
-                if (RemoveAtExtracted(index, out _previous))
+                if (RemoveAtPrivate(index, out _previous))
                 {
                     Interlocked.Decrement(ref _count);
                     return true;
@@ -270,7 +249,7 @@ namespace Theraot.Collections.ThreadSafe
             else
             {
                 object _previous;
-                if (RemoveAtExtracted(index, out _previous))
+                if (RemoveAtPrivate(index, out _previous))
                 {
                     Interlocked.Decrement(ref _count);
                     if (ReferenceEquals(_previous, BucketHelper.Null))
@@ -306,11 +285,7 @@ namespace Theraot.Collections.ThreadSafe
             }
             else
             {
-                SetExtracted(index, item, out isNew);
-                if (isNew)
-                {
-                    Interlocked.Increment(ref _count);
-                }
+                SetInternal(index, item, out isNew);
             }
         }
 
@@ -336,14 +311,31 @@ namespace Theraot.Collections.ThreadSafe
             }
             else
             {
-                return TryGetExtracted(index, out value);
+                return TryGetInternal(index, out value);
             }
         }
 
-        internal bool InsertExtracted(int index, T item, out T previous)
+        internal bool ExchangeInternal(int index, T item, out T previous)
+        {
+            previous = default(T);
+            object _previous;
+            ExchangePrivate(index, item, out _previous);
+            if (_previous == null)
+            {
+                Interlocked.Increment(ref _count);
+                return true;
+            }
+            if (!ReferenceEquals(_previous, BucketHelper.Null))
+            {
+                previous = (T)_previous;
+            }
+            return false;
+        }
+
+        internal bool InsertInternal(int index, T item, out T previous)
         {
             object _previous;
-            if (InsertExtracted(index, item, out _previous))
+            if (InsertPrivate(index, item, out _previous))
             {
                 previous = default(T);
                 Interlocked.Increment(ref _count);
@@ -363,10 +355,10 @@ namespace Theraot.Collections.ThreadSafe
             }
         }
 
-        internal bool InsertExtracted(int index, T item)
+        internal bool InsertInternal(int index, T item)
         {
             object _previous;
-            if (InsertExtracted(index, item, out _previous))
+            if (InsertPrivate(index, item, out _previous))
             {
                 Interlocked.Increment(ref _count);
                 return true;
@@ -374,7 +366,16 @@ namespace Theraot.Collections.ThreadSafe
             return false;
         }
 
-        internal bool TryGetExtracted(int index, out T value)
+        internal void SetInternal(int index, T item, out bool isNew)
+        {
+            SetPrivate(index, item, out isNew);
+            if (isNew)
+            {
+                Interlocked.Increment(ref _count);
+            }
+        }
+
+        internal bool TryGetInternal(int index, out T value)
         {
             var entry = Interlocked.CompareExchange(ref _entries[index], null, null);
             if (entry == null)
@@ -396,30 +397,30 @@ namespace Theraot.Collections.ThreadSafe
             }
         }
 
-        private void ExchangeExtracted(int index, object item, out object previous)
+        private void ExchangePrivate(int index, object item, out object previous)
         {
             previous = Interlocked.Exchange(ref _entries[index], item ?? BucketHelper.Null);
         }
 
-        private bool InsertExtracted(int index, object item, out object previous)
+        private bool InsertPrivate(int index, object item, out object previous)
         {
             previous = Interlocked.CompareExchange(ref _entries[index], item ?? BucketHelper.Null, null);
             return previous == null;
         }
 
-        private void RecycleExtracted()
+        private void RecyclePrivate()
         {
             ArrayReservoir<object>.DonateArray(_entries);
             _entries = null;
         }
 
-        private bool RemoveAtExtracted(int index, out object previous)
+        private bool RemoveAtPrivate(int index, out object previous)
         {
             previous = Interlocked.Exchange(ref _entries[index], null);
             return previous != null;
         }
 
-        private void SetExtracted(int index, object item, out bool isNew)
+        private void SetPrivate(int index, object item, out bool isNew)
         {
             isNew = Interlocked.Exchange(ref _entries[index], item ?? BucketHelper.Null) == null;
         }

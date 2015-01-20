@@ -24,7 +24,7 @@ namespace Theraot.Collections.ThreadSafe
                 var children = branch._children;
                 var subindex = GetSubindex(index, branch);
                 INode _previous;
-                var isNew = children.Exchange(subindex, new Leaf(item), out _previous);
+                var isNew = children.ExchangeInternal(subindex, new Leaf(item), out _previous);
                 previous = isNew ? default(T) : ((Leaf)_previous).Value;
                 return isNew;
             }
@@ -59,7 +59,7 @@ namespace Theraot.Collections.ThreadSafe
                 var subindex = GetSubindex(index, branch);
                 // Insert leaf
                 INode previousLeaf;
-                var result = children.InsertExtracted(subindex, new Leaf(item), out previousLeaf);
+                var result = children.InsertInternal(subindex, new Leaf(item), out previousLeaf);
                 previous = result ? default(T) : ((Leaf)previousLeaf).Value;
                 return result;
                 // if this returns true, the new item was inserted, so there was no previous item
@@ -88,7 +88,7 @@ namespace Theraot.Collections.ThreadSafe
                     INode node;
                     var children = branch._children;
                     var subindex = GetSubindex(index, branch);
-                    if (children.TryGet(subindex, out node))
+                    if (children.TryGetInternal(subindex, out node))
                     {
                         // We found the leaf, read it to get the value
                         value = ((Leaf)node).Value;
@@ -107,7 +107,7 @@ namespace Theraot.Collections.ThreadSafe
                 var children = branch._children;
                 var subindex = GetSubindex(index, branch);
                 // Insert leaf
-                children.Set(subindex, new Leaf(value), out isNew);
+                children.SetInternal(subindex, new Leaf(value), out isNew);
                 // if this returns true, the new item was inserted, so isNew is set to true
                 // if this returns false, some other thread inserted first... so isNew is set to false
                 // yet we pretend we inserted first and the value was replaced by the other thread
@@ -125,7 +125,7 @@ namespace Theraot.Collections.ThreadSafe
                 // Calculate the index of the target child
                 var subindex = GetSubindex(index, this);
                 // Retrieve the already present branch
-                if (_children.TryGet(subindex, out result))
+                if (_children.TryGetInternal(subindex, out result))
                 {
                     // We success in retrieving the branch
                     var branch = result as Branch;
@@ -165,7 +165,7 @@ namespace Theraot.Collections.ThreadSafe
                             var branch = new Branch(_offset - INT_OffsetStep);
                         again:
                             // Attempt to insert the created branch
-                            if (_children.InsertExtracted(subindex, branch))
+                            if (_children.InsertInternal(subindex, branch))
                             {
                                 // We success in inserting the branch
                                 // Delegate to the new branch
@@ -177,7 +177,7 @@ namespace Theraot.Collections.ThreadSafe
                                 // Note: We do not jump out to start over...
                                 //       because we have already created a branch, and we may need it
                                 // Retrieve the already present branch
-                                if (_children.TryGet(subindex, out result))
+                                if (_children.TryGetInternal(subindex, out result))
                                 {
                                     // We success in retrieving the branch
                                     // We are leaking the Branch
