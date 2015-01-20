@@ -66,6 +66,21 @@ namespace Theraot.Collections.ThreadSafe
                 // if this returns false, something was inserted first... so we get the previous item
             }
 
+            public void Set(uint index, T value, out bool isNew)
+            {
+                // Get the target branch to which to insert
+                Branch branch = Map(index, false);
+                // The branch can only be null if we request readonly - we did not
+                var children = branch._children;
+                var subindex = GetSubindex(index, branch);
+                // Insert leaf
+                children.SetInternal(subindex, new Leaf(value), out isNew);
+                // if this returns true, the new item was inserted, so isNew is set to true
+                // if this returns false, some other thread inserted first... so isNew is set to false
+                // yet we pretend we inserted first and the value was replaced by the other thread
+                // So we say the operation was a success regardless
+            }
+
             System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator()
             {
                 return GetEnumerator();
@@ -97,21 +112,6 @@ namespace Theraot.Collections.ThreadSafe
                     // We didn't get the leaf, it may have been removed
                     return false;
                 }
-            }
-
-            public void TrySet(uint index, T value, out bool isNew)
-            {
-                // Get the target branch to which to insert
-                Branch branch = Map(index, false);
-                // The branch can only be null if we request readonly - we did not
-                var children = branch._children;
-                var subindex = GetSubindex(index, branch);
-                // Insert leaf
-                children.SetInternal(subindex, new Leaf(value), out isNew);
-                // if this returns true, the new item was inserted, so isNew is set to true
-                // if this returns false, some other thread inserted first... so isNew is set to false
-                // yet we pretend we inserted first and the value was replaced by the other thread
-                // So we say the operation was a success regardless
             }
 
             private static int GetSubindex(uint index, Branch branch)

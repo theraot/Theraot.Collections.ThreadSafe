@@ -146,6 +146,15 @@ namespace Theraot.Collections.ThreadSafe
             }
         }
 
+        public void Set(int index, T value, out bool isNew)
+        {
+            _root.Set(unchecked((uint)index), value, out isNew);
+            if (isNew)
+            {
+                Interlocked.Increment(ref _count);
+            }
+        }
+
         System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator()
         {
             return GetEnumerator();
@@ -154,15 +163,6 @@ namespace Theraot.Collections.ThreadSafe
         public bool TryGet(int index, out T value)
         {
             return _root.TryGet(unchecked((uint)index), out value);
-        }
-
-        public void TrySet(int index, T value, out bool isNew)
-        {
-            _root.TrySet(unchecked((uint)index), value, out isNew);
-            if (isNew)
-            {
-                Interlocked.Increment(ref _count);
-            }
         }
 
         private struct Leaf : INode
