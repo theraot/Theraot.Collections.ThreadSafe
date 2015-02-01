@@ -134,79 +134,58 @@ namespace Theraot.Collections.ThreadSafe
                         // Return this
                         return this;
                     }
-                    else
-                    {
-                        // Delegate to it
-                        return branch.Map(index, readOnly);
-                    }
+                    // Delegate to it
+                    return branch.Map(index, readOnly);
                 }
-                else
+                // We fail to retrieve the branch because it is not there - can we write?
+                if (readOnly)
                 {
-                    // We fail to retrieve the branch because it is not there
-                    if (readOnly)
+                    // We cannot write, so we don't attempt to isnert a new node
+                    // return null instead
+                    return null;
+                }
+                // We can write, do we need a leaf?
+                if (_offset != 0)
+                {
+                    // We need to insert a branch
+                    // Create the branch to insert
+                    var branch = new Branch(_offset - INT_OffsetStep);
+                    // TODO: solve loop
+                    while (true)
                     {
-                        // We cannot write, so we don't attempt to isnert a new node
-                        // return null instead
-                        return null;
-                    }
-                    else
-                    {
-                        // Try to insert a new one
-                        if (_offset == 0)
+                        // Attempt to insert the created branch
+                        if (_children.InsertInternal(subindex, branch))
                         {
-                            // We need to insert a leaf
-                            // It is not responsability of this method to create leafs
-                            return this;
+                            // We success in inserting the branch
+                            // Delegate to the new branch
+                            return branch.Map(index, false);
                         }
-                        else
+                        // We did fail in inserting the branch because another thread inserted one
+                        // Note: We do not jump out to start over...
+                        //       because we have already created a branch, and we may need it
+                        // Retrieve the already present branch
+                        if (_children.TryGetInternal(subindex, out result))
                         {
-                            // We need to insert a branch
-                            // Create the branch to insert
-                            var branch = new Branch(_offset - INT_OffsetStep);
-                        again:
-                            // Attempt to insert the created branch
-                            if (_children.InsertInternal(subindex, branch))
+                            // We success in retrieving the branch
+                            // We are leaking the Branch
+                            // TODO: solve leak
+                            branch = result as Branch;
+                            if (branch == null)
                             {
-                                // We success in inserting the branch
-                                // Delegate to the new branch
-                                return branch.Map(index, false);
+                                // Return this
+                                return this;
                             }
-                            else
-                            {
-                                // We did fail in inserting the branch because another thread inserted one
-                                // Note: We do not jump out to start over...
-                                //       because we have already created a branch, and we may need it
-                                // Retrieve the already present branch
-                                if (_children.TryGetInternal(subindex, out result))
-                                {
-                                    // We success in retrieving the branch
-                                    // We are leaking the Branch
-                                    // TODO: solve leak
-                                    branch = result as Branch;
-                                    if (branch == null)
-                                    {
-                                        // Return this
-                                        return this;
-                                    }
-                                    else
-                                    {
-                                        // Delegate to it
-                                        return branch.Map(index, true);
-                                    }
-                                }
-                                else
-                                {
-                                    // We fail to retrieve the branch because another thread must have removed it
-                                    // Start over, we have a chance to insert the branch back again
-                                    // Jump back to where we just created the branch to attempt to insert it again
-                                    goto again;
-                                    // This creates a loop
-                                    // TODO: solve loop
-                                }
-                            }
+                            // Delegate to it
+                            return branch.Map(index, true);
                         }
+                        // We fail to retrieve the branch because another thread must have removed it
+                        // Start over, we have a chance to insert the branch back again
+                        // Jump back to where we just created the branch to attempt to insert it again
                     }
                 }
+                // We need to insert a leaf
+                // It is not responsability of this method to create leafs
+                return this;
             }
         }
     }
