@@ -1,7 +1,28 @@
-﻿namespace Theraot.Core
+﻿using System;
+
+namespace Theraot.Core
 {
     public static class NumericHelper
     {
+        [global::System.Diagnostics.DebuggerNonUserCode]
+        public static int Log2(int number)
+        {
+            if (number == 0)
+            {
+                throw new ArgumentException("The logarithm of zero is not defined.");
+            }
+            if (number <= 0)
+            {
+                throw new ArgumentException("The logarithm of a negative number is imaginary.");
+            }
+            number |= number >> 1;
+            number |= number >> 2;
+            number |= number >> 4;
+            number |= number >> 8;
+            number |= number >> 16;
+            return PopulationCount(number >> 1);
+        }
+
         [global::System.Diagnostics.DebuggerNonUserCode]
         public static int NextPowerOf2(int number)
         {
