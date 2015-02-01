@@ -271,6 +271,36 @@ namespace Theraot.Collections.ThreadSafe
         }
 
         /// <summary>
+        /// Removes the item at the specified index if it matches the specified value.
+        /// </summary>
+        /// <param name="index">The index.</param>
+        /// <param name="value">The value intended to remove.</param>
+        /// <returns>
+        ///   <c>true</c> if the item was removed; otherwise, <c>false</c>.
+        /// </returns>
+        /// <exception cref="System.ArgumentOutOfRangeException">index;index must be greater or equal to 0 and less than capacity</exception>
+        public bool RemoveValueAt(int index, T value)
+        {
+            if (index < 0 || index >= _capacity)
+            {
+                throw new ArgumentOutOfRangeException("index", "index must be greater or equal to 0 and less than capacity");
+            }
+            else
+            {
+                object _previous;
+                if (RemoveValueAtPrivate(index, value, out _previous))
+                {
+                    Interlocked.Decrement(ref _count);
+                    return true;
+                }
+                else
+                {
+                    return false;
+                }
+            }
+        }
+
+        /// <summary>
         /// Sets the item at the specified index.
         /// </summary>
         /// <param name="index">The index.</param>
@@ -287,11 +317,6 @@ namespace Theraot.Collections.ThreadSafe
             {
                 SetInternal(index, item, out isNew);
             }
-        }
-
-        System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator()
-        {
-            return GetEnumerator();
         }
 
         /// <summary>
@@ -402,6 +427,11 @@ namespace Theraot.Collections.ThreadSafe
             previous = Interlocked.Exchange(ref _entries[index], item ?? BucketHelper.Null);
         }
 
+        System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator()
+        {
+            return GetEnumerator();
+        }
+
         private bool InsertPrivate(int index, object item, out object previous)
         {
             previous = Interlocked.CompareExchange(ref _entries[index], item ?? BucketHelper.Null, null);
@@ -417,6 +447,11 @@ namespace Theraot.Collections.ThreadSafe
         private bool RemoveAtPrivate(int index, out object previous)
         {
             previous = Interlocked.Exchange(ref _entries[index], null);
+            return previous != null;
+        }
+        private bool RemoveValueAtPrivate(int index, object value, out object previous)
+        {
+            previous = Interlocked.CompareExchange(ref _entries[index], null, value);
             return previous != null;
         }
 
