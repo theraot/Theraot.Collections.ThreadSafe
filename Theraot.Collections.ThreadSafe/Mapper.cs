@@ -6,14 +6,6 @@ namespace Theraot.Collections.ThreadSafe
 {
     public partial class Mapper<T> : IEnumerable<T>
     {
-        // The size of the Mapper
-        // Each mapper will grow up to (INT_MaxOffset / INT_OffsetStep) * (2 ^ INT_OffsetStep)
-        // Given the values INT_MaxOffset = 32 and INT_OffsetStep = 4
-        // The mapper will grow up to (32 / 4) * (2 ^ 4) = 8 * 16 = 128 branches
-        // To optimize size, set INT_OffsetStep to 2:
-        // The mapper will grow up to (32 / 2) * (2 ^ 2) = 16 * 4 = 64 branches
-        // Yet a bigger INT_OffsetStep will mean a better access time
-
         private const int INT_Capacity = 1 << INT_OffsetStep;
         private const int INT_MaxOffset = 32;
         private const int INT_OffsetStep = 4;
