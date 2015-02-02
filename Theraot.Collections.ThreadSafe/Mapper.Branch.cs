@@ -6,14 +6,38 @@ namespace Theraot.Collections.ThreadSafe
     {
         private class Branch : INode, IEnumerable<T>
         {
-            private readonly Bucket<INode> _children;
+            private static readonly Pool<Branch> _branchPool;
+            private Bucket<INode> _children;
 
-            private readonly int _offset;
+            private int _offset;
 
-            public Branch(int offset)
+            static Branch()
+            {
+                _branchPool = new Pool<Branch>
+                    (
+                        16,
+                        branch =>
+                        {
+                            branch._children = new Bucket<INode>(INT_Capacity);
+                        }
+                    );
+            }
+
+            private Branch(int offset)
             {
                 _offset = offset;
                 _children = new Bucket<INode>(INT_Capacity);
+            }
+
+            public static Branch Create(int offset)
+            {
+                Branch result;
+                if (_branchPool.TryGet(out result))
+                {
+                    result._offset = offset;
+                    return result;
+                }
+                return new Branch(offset);
             }
 
             public bool Exchange(uint index, T item, out T previous)
@@ -81,11 +105,6 @@ namespace Theraot.Collections.ThreadSafe
                 // So we say the operation was a success regardless
             }
 
-            System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator()
-            {
-                return GetEnumerator();
-            }
-
             public bool TryGet(uint index, out T value)
             {
                 value = default(T);
@@ -119,6 +138,11 @@ namespace Theraot.Collections.ThreadSafe
                 return (int)((index >> branch._offset) & 0xF);
             }
 
+            System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator()
+            {
+                return GetEnumerator();
+            }
+
             private Branch Map(uint index, bool readOnly)
             {
                 INode result;
@@ -149,7 +173,7 @@ namespace Theraot.Collections.ThreadSafe
                 {
                     // We need to insert a branch
                     // Create the branch to insert
-                    var branch = new Branch(_offset - INT_OffsetStep);
+                    var branch = Create(_offset - INT_OffsetStep);
                     // TODO: solve loop
                     while (true)
                     {
