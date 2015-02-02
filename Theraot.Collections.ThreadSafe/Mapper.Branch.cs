@@ -192,7 +192,7 @@ namespace Theraot.Collections.ThreadSafe
                         {
                             // We success in retrieving the branch
                             // We are leaking the Branch
-                            // TODO: solve leak
+                            _branchPool.Donate(branch);
                             branch = result as Branch;
                             if (branch == null)
                             {
