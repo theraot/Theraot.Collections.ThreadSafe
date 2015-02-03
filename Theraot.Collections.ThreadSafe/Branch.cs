@@ -208,25 +208,15 @@ namespace Theraot.Collections.ThreadSafe
         {
             var subindex = GetSubindex(index);
             previous = null;
-            object _previous = Interlocked.Exchange(ref _entries[subindex], new Leaf(index, item));
+            object _previous = Interlocked.Exchange(ref _entries[subindex], Leaf.Create(index, item));
             if (_previous == null)
             {
                 Interlocked.Increment(ref _count);
                 return true;
             }
-            previous = ((Leaf)_previous).Value;
-            return false;
-        }
-
-        private bool PrivateInsert(uint index, object item)
-        {
-            var subindex = GetSubindex(index);
-            object _previous = Interlocked.CompareExchange(ref _entries[subindex], new Leaf(index, item), null);
-            if (_previous == null)
-            {
-                Interlocked.Increment(ref _count);
-                return true;
-            }
+            var leaf = ((Leaf) _previous);
+            previous = leaf.Value;
+            Leaf.Donate(leaf);
             return false;
         }
 
@@ -234,7 +224,7 @@ namespace Theraot.Collections.ThreadSafe
         {
             var subindex = GetSubindex(index);
             previous = null;
-            object _previous = Interlocked.CompareExchange(ref _entries[subindex], new Leaf(index, item), null);
+            object _previous = Interlocked.CompareExchange(ref _entries[subindex], Leaf.Create(index, item), null);
             if (_previous == null)
             {
                 Interlocked.Increment(ref _count);
@@ -247,10 +237,17 @@ namespace Theraot.Collections.ThreadSafe
         private void PrivateSet(uint index, object item, out bool isNew)
         {
             var subindex = GetSubindex(index);
-            isNew = Interlocked.Exchange(ref _entries[subindex], new Leaf(index, item)) == null;
-            if (isNew)
+            isNew = false;
+            object _previous = Interlocked.Exchange(ref _entries[subindex], Leaf.Create(index, item));
+            if (_previous == null)
             {
                 Interlocked.Increment(ref _count);
+                isNew = true;
+            }
+            else
+            {
+                var leaf = ((Leaf)_previous);
+                Leaf.Donate(leaf);
             }
         }
 
