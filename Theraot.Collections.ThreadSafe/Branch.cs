@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.Threading;
 
 namespace Theraot.Collections.ThreadSafe
@@ -20,7 +21,7 @@ namespace Theraot.Collections.ThreadSafe
                     16,
                     branch =>
                     {
-                        branch._entries = new object[INT_Capacity];
+                        branch._entries = ArrayReservoir<object>.GetArray(INT_Capacity);
                     }
                 );
         }
@@ -28,7 +29,15 @@ namespace Theraot.Collections.ThreadSafe
         private Branch(int offset)
         {
             _offset = offset;
-            _entries = new object[INT_Capacity];
+            _entries = ArrayReservoir<object>.GetArray(INT_Capacity);
+        }
+
+        ~Branch()
+        {
+            if (!AppDomain.CurrentDomain.IsFinalizingForUnload())
+            {
+                ArrayReservoir<object>.DonateArray(_entries);
+            }
         }
 
         public static Branch Create(int offset)
