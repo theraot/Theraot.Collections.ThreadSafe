@@ -63,19 +63,9 @@ namespace Theraot.Collections.ThreadSafe
 
         public IEnumerator<object> GetEnumerator()
         {
-            if (_offset == 0)
+            foreach (var child in _entries)
             {
-                foreach (var child in _entries)
-                {
-                    if (!ReferenceEquals(child, null) && !ReferenceEquals(child, BucketHelper.Null))
-                    {
-                        yield return child;
-                    }
-                }
-            }
-            else
-            {
-                foreach (var child in _entries)
+                if (!ReferenceEquals(child, null) && !ReferenceEquals(child, BucketHelper.Null))
                 {
                     var items = child as Branch;
                     if (items != null)
@@ -84,6 +74,10 @@ namespace Theraot.Collections.ThreadSafe
                         {
                             yield return item;
                         }
+                    }
+                    else
+                    {
+                        yield return child;
                     }
                 }
             }
