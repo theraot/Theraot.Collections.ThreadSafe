@@ -1,4 +1,5 @@
 ﻿using System.Collections.Generic;
+using System.Threading;
 
 namespace Theraot.Collections.ThreadSafe
 {
@@ -7,8 +8,8 @@ namespace Theraot.Collections.ThreadSafe
         private class Branch : INode, IEnumerable<T>
         {
             private static readonly Pool<Branch> _branchPool;
-            private Bucket<INode> _children;
-
+            private int _count;
+            private object[] _entries;
             private int _offset;
 
             static Branch()
@@ -18,7 +19,7 @@ namespace Theraot.Collections.ThreadSafe
                         16,
                         branch =>
                         {
-                            branch._children = new Bucket<INode>(INT_Capacity);
+                            branch._entries = new object[INT_Capacity];
                         }
                     );
             }
@@ -26,7 +27,7 @@ namespace Theraot.Collections.ThreadSafe
             private Branch(int offset)
             {
                 _offset = offset;
-                _children = new Bucket<INode>(INT_Capacity);
+                _entries = new object[INT_Capacity];
             }
 
             public static Branch Create(int offset)
@@ -42,33 +43,40 @@ namespace Theraot.Collections.ThreadSafe
 
             public bool Exchange(uint index, T item, out T previous)
             {
-                // Get the target branch with which to exchange
+                // Get the target branch - can only be null if we request readonly - we did not
                 Branch branch = Map(index, false);
-                // The branch can only be null if we request readonly - we did not
-                var children = branch._children;
+                // Get the subindex
                 var subindex = GetSubindex(index, branch);
-                INode _previous;
-                var isNew = children.ExchangeInternal(subindex, new Leaf(item), out _previous);
-                previous = isNew ? default(T) : ((Leaf)_previous).Value;
-                return isNew;
+                // ---
+                object previousLeaf;
+                var result = branch.PrivateExchange(subindex, new Leaf(item), out previousLeaf);
+                previous = result ? default(T) : ((Leaf)previousLeaf).Value;
+                return result;
             }
 
             public IEnumerator<T> GetEnumerator()
             {
                 if (_offset == 0)
                 {
-                    foreach (var child in _children)
+                    foreach (var child in _entries)
                     {
-                        yield return ((Leaf)child).Value;
+                        if (child is Leaf)
+                        {
+                            yield return ((Leaf) child).Value;
+                        }
                     }
                 }
                 else
                 {
-                    foreach (var child in _children)
+                    foreach (var child in _entries)
                     {
-                        foreach (var item in (Branch)child)
+                        var items = child as Branch;
+                        if (items != null)
                         {
-                            yield return item;
+                            foreach (var item in items)
+                            {
+                                yield return item;
+                            }
                         }
                     }
                 }
@@ -76,14 +84,13 @@ namespace Theraot.Collections.ThreadSafe
 
             public bool Insert(uint index, T item, out T previous)
             {
-                // Get the target branch to which to insert
+                // Get the target branch - can only be null if we request readonly - we did not
                 Branch branch = Map(index, false);
-                // The branch can only be null if we request readonly - we did not
-                var children = branch._children;
+                // Get the subindex
                 var subindex = GetSubindex(index, branch);
-                // Insert leaf
-                INode previousLeaf;
-                var result = children.InsertInternal(subindex, new Leaf(item), out previousLeaf);
+                // ---
+                object previousLeaf;
+                var result = branch.PrivateInsert(subindex, new Leaf(item), out previousLeaf);
                 previous = result ? default(T) : ((Leaf)previousLeaf).Value;
                 return result;
                 // if this returns true, the new item was inserted, so there was no previous item
@@ -92,13 +99,12 @@ namespace Theraot.Collections.ThreadSafe
 
             public void Set(uint index, T value, out bool isNew)
             {
-                // Get the target branch to which to insert
+                // Get the target branch - can only be null if we request readonly - we did not
                 Branch branch = Map(index, false);
-                // The branch can only be null if we request readonly - we did not
-                var children = branch._children;
+                // Get the subindex
                 var subindex = GetSubindex(index, branch);
-                // Insert leaf
-                children.SetInternal(subindex, new Leaf(value), out isNew);
+                // ---
+                branch.PrivaateSet(subindex, new Leaf(value), out isNew);
                 // if this returns true, the new item was inserted, so isNew is set to true
                 // if this returns false, some other thread inserted first... so isNew is set to false
                 // yet we pretend we inserted first and the value was replaced by the other thread
@@ -108,29 +114,26 @@ namespace Theraot.Collections.ThreadSafe
             public bool TryGet(uint index, out T value)
             {
                 value = default(T);
-                // Get the target branch to which to insert
-                Branch branch = Map(index, true);
+                // Get the target branch  - can be null
+                var branch = Map(index, true);
                 // Check if we got a branch
                 if (branch == null)
                 {
                     // We didn't get a branch, meaning that what we look for is not there
                     return false;
                 }
-                else
+                // Get the subindex
+                var subindex = GetSubindex(index, branch);
+                // ---
+                object node;
+                if (branch.PrivateTryGet(subindex, out node))
                 {
-                    // We got a branch, attempt to read it
-                    INode node;
-                    var children = branch._children;
-                    var subindex = GetSubindex(index, branch);
-                    if (children.TryGetInternal(subindex, out node))
-                    {
-                        // We found the leaf, read it to get the value
-                        value = ((Leaf)node).Value;
-                        return true;
-                    }
-                    // We didn't get the leaf, it may have been removed
-                    return false;
+                    // We found the leaf, read it to get the value
+                    value = ((Leaf)node).Value;
+                    return true;
                 }
+                // We didn't get the leaf, it may have been removed
+                return false;
             }
 
             private static int GetSubindex(uint index, Branch branch)
@@ -145,27 +148,19 @@ namespace Theraot.Collections.ThreadSafe
 
             private Branch Map(uint index, bool readOnly)
             {
-                INode result;
-                // Calculate the index of the target child
                 var subindex = GetSubindex(index, this);
-                // Retrieve the already present branch
-                if (_children.TryGetInternal(subindex, out result))
+                object result;
+                if (PrivateTryGet(subindex, out result))
                 {
-                    // We success in retrieving the branch
                     var branch = result as Branch;
                     if (branch == null)
                     {
-                        // Return this
                         return this;
                     }
-                    // Delegate to it
                     return branch.Map(index, readOnly);
                 }
-                // We fail to retrieve the branch because it is not there - can we write?
                 if (readOnly)
                 {
-                    // We cannot write, so we don't attempt to isnert a new node
-                    // return null instead
                     return null;
                 }
                 // We can write, do we need a leaf?
@@ -178,7 +173,7 @@ namespace Theraot.Collections.ThreadSafe
                     while (true)
                     {
                         // Attempt to insert the created branch
-                        if (_children.InsertInternal(subindex, branch))
+                        if (PrivateInsert(subindex, branch))
                         {
                             // We success in inserting the branch
                             // Delegate to the new branch
@@ -188,7 +183,7 @@ namespace Theraot.Collections.ThreadSafe
                         // Note: We do not jump out to start over...
                         //       because we have already created a branch, and we may need it
                         // Retrieve the already present branch
-                        if (_children.TryGetInternal(subindex, out result))
+                        if (PrivateTryGet(subindex, out result))
                         {
                             // We success in retrieving the branch
                             // We are leaking the Branch
@@ -210,6 +205,73 @@ namespace Theraot.Collections.ThreadSafe
                 // We need to insert a leaf
                 // It is not responsability of this method to create leafs
                 return this;
+            }
+
+            private void PrivaateSet(int index, object item, out bool isNew)
+            {
+                isNew = Interlocked.Exchange(ref _entries[index], item ?? BucketHelper.Null) == null;
+                if (isNew)
+                {
+                    Interlocked.Increment(ref _count);
+                }
+            }
+
+            private bool PrivateExchange(int index, object item, out object previous)
+            {
+                previous = default(T);
+                object _previous = Interlocked.Exchange(ref _entries[index], item ?? BucketHelper.Null);
+                if (_previous == null)
+                {
+                    Interlocked.Increment(ref _count);
+                    return true;
+                }
+                if (!ReferenceEquals(_previous, BucketHelper.Null))
+                {
+                    previous = _previous;
+                }
+                return false;
+            }
+
+            private bool PrivateInsert(int index, object item)
+            {
+                object _previous = Interlocked.CompareExchange(ref _entries[index], item ?? BucketHelper.Null, null);
+                if (_previous == null)
+                {
+                    Interlocked.Increment(ref _count);
+                    return true;
+                }
+                return false;
+            }
+
+            private bool PrivateInsert(int index, object item, out object previous)
+            {
+                previous = null;
+                object _previous = Interlocked.CompareExchange(ref _entries[index], item ?? BucketHelper.Null, null);
+                if (_previous == null)
+                {
+                    Interlocked.Increment(ref _count);
+                    return true;
+                }
+                if (!ReferenceEquals(_previous, BucketHelper.Null))
+                {
+                    previous = _previous;
+                }
+                return false;
+            }
+
+            private bool PrivateTryGet(int index, out object value)
+            {
+                value = null;
+                var entry = Interlocked.CompareExchange(ref _entries[index], null, null);
+                if (entry == null)
+                {
+                    return false;
+                }
+                if (!ReferenceEquals(entry, BucketHelper.Null))
+                {
+                    value = entry;
+                }
+                return true;
             }
         }
     }
