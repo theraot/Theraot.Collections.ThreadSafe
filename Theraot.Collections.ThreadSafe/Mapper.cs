@@ -54,7 +54,7 @@ namespace Theraot.Collections.ThreadSafe
             {
                 foreach (var entry in _root)
                 {
-                    array[arrayIndex] = (T)entry;
+                    array[arrayIndex] = (T)((Leaf)entry).Value;
                     arrayIndex++;
                 }
             }
@@ -90,7 +90,7 @@ namespace Theraot.Collections.ThreadSafe
         {
             foreach (var item in _root)
             {
-                yield return (T) item;
+                yield return (T)((Leaf)item).Value;
             }
         }
 
