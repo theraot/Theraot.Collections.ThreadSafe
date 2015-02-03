@@ -114,6 +114,28 @@ namespace Tests
         }
 
         [Test]
+        public void InsertOrPrevious()
+        {
+            var mapper = new Mapper<int>();
+            const int Input_A = 21;
+            const int Input_B = 42;
+            int result;
+
+            Assert.IsTrue(mapper.Insert(0, Input_A, out result));
+            Assert.AreEqual(0, result);
+
+            Assert.IsFalse(mapper.Insert(0, Input_B, out result));
+            Assert.AreEqual(Input_A, result);
+
+            Assert.IsFalse(mapper.Insert(0, Input_A, out result));
+            Assert.AreEqual(Input_A, result);
+            Assert.IsTrue(mapper.TryGet(0, out result));
+            Assert.AreEqual(Input_A, result);
+
+            Assert.AreEqual(1, mapper.Count);
+        }
+
+        [Test]
         public void SetAndGet()
         {
             var mapper = new Mapper<int>();
@@ -190,7 +212,39 @@ namespace Tests
                 new[] { 28587, 25902 },
                 new[] { 13350, 31552 },
                 new[] { 27450, 15232 },
-                new[] { 30662, 24366 }
+                new[] { 30662, 24366 },
+                new[] { 977, 15 },
+                new[] { 777, 344 },
+                new[] { 303, 576 },
+                new[] { 21, 428 },
+                new[] { 722, 711 },
+                new[] { 350, 657 },
+                new[] { 552, 74 },
+                new[] { 738, 381 },
+                new[] { 787, 640 },
+                new[] { 781, 813 },
+                new[] { 679, 334 },
+                new[] { 192, 190 },
+                new[] { 385, 272 },
+                new[] { 760, 942 },
+                new[] { 380, 802 },
+                new[] { 56, 11 },
+                new[] { 87, 33 },
+                new[] { 34, 96 },
+                new[] { 81, 58 },
+                new[] { 43, 45 },
+                new[] { 4, 50 },
+                new[] { 26, 89 },
+                new[] { 31, 83 },
+                new[] { 60, 1 },
+                new[] { 20, 76 },
+                new[] { 32, 71 },
+                new[] { 66, 47 },
+                new[] { 2, 18 },
+                new[] { 75, 37 },
+                new[] { 0, 0 },
+                new[] { 1, 1 },
+                new[] { 3, 3 }
             };
         }
     }
