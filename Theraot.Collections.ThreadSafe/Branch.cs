@@ -58,10 +58,7 @@ namespace Theraot.Collections.ThreadSafe
             // Get the subindex
             var subindex = GetSubindex(index, branch);
             // ---
-            object previousLeaf;
-            var result = branch.PrivateExchange(subindex, new Leaf(item), out previousLeaf);
-            previous = result ? null : ((Leaf)previousLeaf).Value;
-            return result;
+            return branch.PrivateExchange(subindex, item, out previous);
         }
 
         public IEnumerator<object> GetEnumerator()
@@ -70,9 +67,9 @@ namespace Theraot.Collections.ThreadSafe
             {
                 foreach (var child in _entries)
                 {
-                    if (child is Leaf)
+                    if (!ReferenceEquals(child, null) && !ReferenceEquals(child, BucketHelper.Null))
                     {
-                        yield return ((Leaf)child).Value;
+                        yield return child;
                     }
                 }
             }
@@ -99,10 +96,7 @@ namespace Theraot.Collections.ThreadSafe
             // Get the subindex
             var subindex = GetSubindex(index, branch);
             // ---
-            object previousLeaf;
-            var result = branch.PrivateInsert(subindex, new Leaf(item), out previousLeaf);
-            previous = result ? null : ((Leaf)previousLeaf).Value;
-            return result;
+            return branch.PrivateInsert(subindex, item, out previous);
             // if this returns true, the new item was inserted, so there was no previous item
             // if this returns false, something was inserted first... so we get the previous item
         }
@@ -114,7 +108,7 @@ namespace Theraot.Collections.ThreadSafe
             // Get the subindex
             var subindex = GetSubindex(index, branch);
             // ---
-            branch.PrivaateSet(subindex, new Leaf(value), out isNew);
+            branch.PrivateSet(subindex, value, out isNew);
             // if this returns true, the new item was inserted, so isNew is set to true
             // if this returns false, some other thread inserted first... so isNew is set to false
             // yet we pretend we inserted first and the value was replaced by the other thread
@@ -135,15 +129,7 @@ namespace Theraot.Collections.ThreadSafe
             // Get the subindex
             var subindex = GetSubindex(index, branch);
             // ---
-            object node;
-            if (branch.PrivateTryGet(subindex, out node))
-            {
-                // We found the leaf, read it to get the value
-                value = ((Leaf)node).Value;
-                return true;
-            }
-            // We didn't get the leaf, it may have been removed
-            return false;
+            return branch.PrivateTryGet(subindex, out value);
         }
 
         private static int GetSubindex(uint index, Branch branch)
@@ -217,7 +203,7 @@ namespace Theraot.Collections.ThreadSafe
             return this;
         }
 
-        private void PrivaateSet(int index, object item, out bool isNew)
+        private void PrivateSet(int index, object item, out bool isNew)
         {
             isNew = Interlocked.Exchange(ref _entries[index], item ?? BucketHelper.Null) == null;
             if (isNew)
