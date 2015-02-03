@@ -4,7 +4,7 @@ using System.Threading;
 
 namespace Theraot.Collections.ThreadSafe
 {
-    internal class Branch : INode, IEnumerable<object>
+    internal class Branch : IEnumerable<object>
     {
         private const int INT_Capacity = 1 << INT_OffsetStep;
         private const int INT_OffsetStep = 4;
