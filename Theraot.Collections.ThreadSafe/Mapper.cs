@@ -4,9 +4,8 @@ using System.Threading;
 
 namespace Theraot.Collections.ThreadSafe
 {
-    public partial class Mapper<T> : IEnumerable<T>
+    public class Mapper<T> : IEnumerable<T>
     {
-        private const int INT_Capacity = 1 << INT_OffsetStep;
         private const int INT_MaxOffset = 32;
         private const int INT_OffsetStep = 4;
         private readonly Branch _root;
@@ -16,11 +15,6 @@ namespace Theraot.Collections.ThreadSafe
         {
             _count = 0;
             _root = Branch.Create(INT_MaxOffset - INT_OffsetStep);
-        }
-
-        private interface INode
-        {
-            // Empty
         }
 
         /// <summary>
@@ -60,7 +54,7 @@ namespace Theraot.Collections.ThreadSafe
             {
                 foreach (var entry in _root)
                 {
-                    array[arrayIndex] = entry;
+                    array[arrayIndex] = (T)entry;
                     arrayIndex++;
                 }
             }
@@ -81,17 +75,23 @@ namespace Theraot.Collections.ThreadSafe
         /// </returns>
         public bool Exchange(int index, T item, out T previous)
         {
-            if (_root.Exchange(unchecked((uint)index), item, out previous))
+            previous = default(T);
+            object previousObject;
+            if (_root.Exchange(unchecked((uint)index), item, out previousObject))
             {
                 Interlocked.Increment(ref _count);
                 return true;
             }
+            previous = (T)previousObject;
             return false;
         }
 
         public IEnumerator<T> GetEnumerator()
         {
-            return _root.GetEnumerator();
+            foreach (var item in _root)
+            {
+                yield return (T) item;
+            }
         }
 
         /// <summary>
@@ -108,16 +108,13 @@ namespace Theraot.Collections.ThreadSafe
         /// </remarks>
         public bool Insert(int index, T item)
         {
-            T previous;
+            object previous;
             if (_root.Insert(unchecked((uint)index), item, out previous))
             {
                 Interlocked.Increment(ref _count);
                 return true;
             }
-            else
-            {
-                return false;
-            }
+            return false;
         }
 
         /// <summary>
@@ -135,15 +132,15 @@ namespace Theraot.Collections.ThreadSafe
         /// </remarks>
         public bool Insert(int index, T item, out T previous)
         {
-            if (_root.Insert(unchecked((uint)index), item, out previous))
+            previous = default(T);
+            object previousObject;
+            if (_root.Insert(unchecked((uint)index), item, out previousObject))
             {
                 Interlocked.Increment(ref _count);
                 return true;
             }
-            else
-            {
-                return false;
-            }
+            previous = (T)previousObject;
+            return false;
         }
 
         public void Set(int index, T value, out bool isNew)
@@ -162,25 +159,14 @@ namespace Theraot.Collections.ThreadSafe
 
         public bool TryGet(int index, out T value)
         {
-            return _root.TryGet(unchecked((uint)index), out value);
-        }
-
-        private struct Leaf : INode
-        {
-            private readonly T _value;
-
-            public Leaf(T value)
+            value = default(T);
+            object valueObject;
+            if (_root.TryGet(unchecked((uint) index), out valueObject))
             {
-                _value = value;
+                value = (T)valueObject;
+                return true;
             }
-
-            public T Value
-            {
-                get
-                {
-                    return _value;
-                }
-            }
+            return false;
         }
     }
 }

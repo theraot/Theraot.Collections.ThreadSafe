@@ -41,7 +41,9 @@
     <Compile Include="BucketHelper.cs" />
     <Compile Include="FixedSizeQueueBucket.cs" />
     <Compile Include="CircularBucket.cs" />
-    <Compile Include="Mapper.Branch.cs" />
+    <Compile Include="INode.cs" />
+    <Compile Include="Leaf.cs" />
+    <Compile Include="Branch.cs" />
     <Compile Include="Mapper.cs" />
     <Compile Include="NumericHelper.cs" />
     <Compile Include="Pool.cs" />
