@@ -121,10 +121,7 @@ namespace Theraot.Collections.ThreadSafe
             {
                 throw new ArgumentOutOfRangeException("index", "index must be greater or equal to 0 and less than capacity");
             }
-            else
-            {
-                return ExchangeInternal(index, item, out previous);
-            }
+            return ExchangeInternal(index, item, out previous);
         }
 
         /// <summary>
@@ -170,10 +167,7 @@ namespace Theraot.Collections.ThreadSafe
             {
                 throw new ArgumentOutOfRangeException("index", "index must be greater or equal to 0 and less than capacity.");
             }
-            else
-            {
-                return InsertInternal(index, item);
-            }
+            return InsertInternal(index, item);
         }
 
         /// <summary>
@@ -196,10 +190,7 @@ namespace Theraot.Collections.ThreadSafe
             {
                 throw new ArgumentOutOfRangeException("index", "index must be greater or equal to 0 and less than capacity");
             }
-            else
-            {
-                return InsertInternal(index, item, out previous);
-            }
+            return InsertInternal(index, item, out previous);
         }
 
         /// <summary>
@@ -216,19 +207,13 @@ namespace Theraot.Collections.ThreadSafe
             {
                 throw new ArgumentOutOfRangeException("index", "index must be greater or equal to 0 and less than capacity");
             }
-            else
+            object _previous;
+            if (RemoveAtPrivate(index, out _previous))
             {
-                object _previous;
-                if (RemoveAtPrivate(index, out _previous))
-                {
-                    Interlocked.Decrement(ref _count);
-                    return true;
-                }
-                else
-                {
-                    return false;
-                }
+                Interlocked.Decrement(ref _count);
+                return true;
             }
+            return false;
         }
 
         /// <summary>
@@ -246,28 +231,22 @@ namespace Theraot.Collections.ThreadSafe
             {
                 throw new ArgumentOutOfRangeException("index", "index must be greater or equal to 0 and less than capacity");
             }
-            else
+            object _previous;
+            if (RemoveAtPrivate(index, out _previous))
             {
-                object _previous;
-                if (RemoveAtPrivate(index, out _previous))
+                Interlocked.Decrement(ref _count);
+                if (ReferenceEquals(_previous, BucketHelper.Null))
                 {
-                    Interlocked.Decrement(ref _count);
-                    if (ReferenceEquals(_previous, BucketHelper.Null))
-                    {
-                        previous = default(T);
-                    }
-                    else
-                    {
-                        previous = (T)_previous;
-                    }
-                    return true;
+                    previous = default(T);
                 }
                 else
                 {
-                    previous = default(T);
-                    return false;
+                    previous = (T)_previous;
                 }
+                return true;
             }
+            previous = default(T);
+            return false;
         }
 
         /// <summary>
@@ -285,19 +264,12 @@ namespace Theraot.Collections.ThreadSafe
             {
                 throw new ArgumentOutOfRangeException("index", "index must be greater or equal to 0 and less than capacity");
             }
-            else
+            if (RemoveValueAtPrivate(index, value))
             {
-                object _previous;
-                if (RemoveValueAtPrivate(index, value, out _previous))
-                {
-                    Interlocked.Decrement(ref _count);
-                    return true;
-                }
-                else
-                {
-                    return false;
-                }
+                Interlocked.Decrement(ref _count);
+                return true;
             }
+            return false;
         }
 
         /// <summary>
@@ -313,10 +285,7 @@ namespace Theraot.Collections.ThreadSafe
             {
                 throw new ArgumentOutOfRangeException("index", "index must be greater or equal to 0 and less than capacity");
             }
-            else
-            {
-                SetInternal(index, item, out isNew);
-            }
+            SetInternal(index, item, out isNew);
         }
 
         /// <summary>
@@ -334,10 +303,7 @@ namespace Theraot.Collections.ThreadSafe
             {
                 throw new ArgumentOutOfRangeException("index", "index must be greater or equal to 0 and less than capacity");
             }
-            else
-            {
-                return TryGetInternal(index, out value);
-            }
+            return TryGetInternal(index, out value);
         }
 
         internal bool ExchangeInternal(int index, T item, out T previous)
@@ -366,18 +332,15 @@ namespace Theraot.Collections.ThreadSafe
                 Interlocked.Increment(ref _count);
                 return true;
             }
+            if (ReferenceEquals(_previous, BucketHelper.Null))
+            {
+                previous = default(T);
+            }
             else
             {
-                if (ReferenceEquals(_previous, BucketHelper.Null))
-                {
-                    previous = default(T);
-                }
-                else
-                {
-                    previous = (T)_previous;
-                }
-                return false;
+                previous = (T)_previous;
             }
+            return false;
         }
 
         internal bool InsertInternal(int index, T item)
@@ -449,10 +412,10 @@ namespace Theraot.Collections.ThreadSafe
             previous = Interlocked.Exchange(ref _entries[index], null);
             return previous != null;
         }
-        private bool RemoveValueAtPrivate(int index, object value, out object previous)
+
+        private bool RemoveValueAtPrivate(int index, object value)
         {
-            previous = Interlocked.CompareExchange(ref _entries[index], null, value);
-            return previous != null;
+            return Interlocked.CompareExchange(ref _entries[index], null, value) != null;
         }
 
         private void SetPrivate(int index, object item, out bool isNew)
