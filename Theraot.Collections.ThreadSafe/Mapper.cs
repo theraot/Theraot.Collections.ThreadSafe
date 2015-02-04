@@ -203,14 +203,7 @@ namespace Theraot.Collections.ThreadSafe
             if (_root.RemoveAt(unchecked((uint)index), out _previous))
             {
                 Interlocked.Decrement(ref _count);
-                if (ReferenceEquals(_previous, BucketHelper.Null))
-                {
-                    previous = default(T);
-                }
-                else
-                {
-                    previous = (T)_previous;
-                }
+                previous = (T)_previous;
                 return true;
             }
             previous = default(T);
