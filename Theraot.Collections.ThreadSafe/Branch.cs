@@ -11,7 +11,6 @@ namespace Theraot.Collections.ThreadSafe
 
         private static readonly Pool<Branch> _branchPool;
         private object[] _buffer;
-        private int _count;
         private object[] _entries;
         private int _offset;
 
@@ -161,9 +160,13 @@ namespace Theraot.Collections.ThreadSafe
                 var result = Interlocked.CompareExchange(ref _buffer[subindex], branch, null) as Branch;
                 if (result == null)
                 {
-                    Interlocked.CompareExchange(ref _entries[subindex], branch, node);
-                    Interlocked.Exchange(ref _buffer[subindex], null);
-                    return branch;
+                    var found = Interlocked.CompareExchange(ref _entries[subindex], branch, node);
+                    if (found == node)
+                    {
+                        Interlocked.Exchange(ref _buffer[subindex], null);
+                        return branch;
+                    }
+                    return (Branch)found;
                 }
                 _branchPool.Donate(branch);
                 return result;
@@ -206,15 +209,14 @@ namespace Theraot.Collections.ThreadSafe
 
         private bool PrivateExchange(uint index, object item, out object previous)
         {
-            var subindex = GetSubindex(index);
             previous = null;
+            var subindex = GetSubindex(index);
             object _previous = Interlocked.Exchange(ref _entries[subindex], Leaf.Create(index, item));
             if (_previous == null)
             {
-                Interlocked.Increment(ref _count);
                 return true;
             }
-            var leaf = ((Leaf) _previous);
+            var leaf = ((Leaf)_previous);
             previous = leaf.Value;
             Leaf.Donate(leaf);
             return false;
@@ -227,7 +229,6 @@ namespace Theraot.Collections.ThreadSafe
             object _previous = Interlocked.CompareExchange(ref _entries[subindex], Leaf.Create(index, item), null);
             if (_previous == null)
             {
-                Interlocked.Increment(ref _count);
                 return true;
             }
             previous = ((Leaf)_previous).Value;
@@ -241,7 +242,6 @@ namespace Theraot.Collections.ThreadSafe
             object _previous = Interlocked.Exchange(ref _entries[subindex], Leaf.Create(index, item));
             if (_previous == null)
             {
-                Interlocked.Increment(ref _count);
                 isNew = true;
             }
             else

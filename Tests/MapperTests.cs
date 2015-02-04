@@ -1,5 +1,6 @@
 ﻿using NUnit.Framework;
 using System;
+using System.Threading;
 using Theraot.Collections.ThreadSafe;
 
 namespace Tests
@@ -177,6 +178,37 @@ namespace Tests
             Assert.AreEqual(mapper.Count, index);
         }
 
+        [Test]
+        public void TwoThreads()
+        {
+            var mapper = new Mapper<int>();
+            var startEvent = new ManualResetEvent(false);
+            var threads = new []
+            {
+                new Thread
+                (
+                    () =>
+                    {
+                        startEvent.WaitOne();
+                        mapper.Insert(0, 2);
+                    }
+                ),
+                new Thread
+                (
+                    () =>
+                    {
+                        startEvent.WaitOne();
+                        mapper.Insert(0, 4);
+                    }
+                )
+            };
+            threads[0].Start();
+            threads[1].Start();
+            startEvent.Set();
+            threads[0].Join();
+            threads[1].Join();
+            Assert.AreEqual(1, mapper.Count);
+        }
         private static int[][] GetSampleData()
         {
             return new[]
