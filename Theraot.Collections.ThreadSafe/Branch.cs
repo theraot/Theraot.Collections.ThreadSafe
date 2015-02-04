@@ -164,42 +164,24 @@ namespace Theraot.Collections.ThreadSafe
             var offset = _offset - INT_OffsetStep;
             var subindex = GetSubindex(index);
             var node = _entries[subindex];
-            var leaf = node as Leaf;
             if (node is Branch)
             {
                 return node as Branch;
             }
-            if (leaf != null)
+            var branch = Create(offset);
+            var result = Interlocked.CompareExchange(ref _buffer[subindex], branch, null) as Branch;
+            if (result == null)
             {
-                var branch = Create(offset);
-                var result = Interlocked.CompareExchange(ref _buffer[subindex], branch, null) as Branch;
-                if (result == null)
+                var found = Interlocked.CompareExchange(ref _entries[subindex], branch, node);
+                if (found == node)
                 {
-                    bool isNew;
-                    branch.PrivateSet(leaf.Index, branch, out isNew);
-                    Interlocked.CompareExchange(ref _entries[subindex], branch, node);
                     Interlocked.Exchange(ref _buffer[subindex], null);
                     return branch;
                 }
-                _branchPool.Donate(branch);
-                return result;
+                return (Branch)found;
             }
-            {
-                var branch = Create(offset);
-                var result = Interlocked.CompareExchange(ref _buffer[subindex], branch, null) as Branch;
-                if (result == null)
-                {
-                    var found = Interlocked.CompareExchange(ref _entries[subindex], branch, node);
-                    if (found == node)
-                    {
-                        Interlocked.Exchange(ref _buffer[subindex], null);
-                        return branch;
-                    }
-                    return (Branch)found;
-                }
-                _branchPool.Donate(branch);
-                return result;
-            }
+            _branchPool.Donate(branch);
+            return result;
         }
 
         private Branch Map(uint index, bool readOnly)
