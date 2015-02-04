@@ -95,6 +95,7 @@ namespace Theraot.Collections.ThreadSafe
 
         public bool RemoveAt(uint index, out object previous)
         {
+            // TODO: Shrink
             previous = null;
             // Get the target branch  - can be null
             var branch = Map(index, true);
@@ -110,6 +111,7 @@ namespace Theraot.Collections.ThreadSafe
 
         public bool RemoveValueAt(uint index, object value)
         {
+            // TODO: Shrink
             // Get the target branch  - can be null
             var branch = Map(index, true);
             // Check if we got a branch
