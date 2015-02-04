@@ -93,6 +93,35 @@ namespace Theraot.Collections.ThreadSafe
             // if this returns false, something was inserted first... so we get the previous item
         }
 
+        public bool RemoveAt(uint index, out object previous)
+        {
+            previous = null;
+            // Get the target branch  - can be null
+            var branch = Map(index, true);
+            // Check if we got a branch
+            if (branch == null)
+            {
+                // We didn't get a branch, meaning that what we look for is not there
+                return false;
+            }
+            // ---
+            return branch.PrivateRemoveAt(index, out previous);
+        }
+
+        public bool RemoveValueAt(uint index, object value)
+        {
+            // Get the target branch  - can be null
+            var branch = Map(index, true);
+            // Check if we got a branch
+            if (branch == null)
+            {
+                // We didn't get a branch, meaning that what we look for is not there
+                return false;
+            }
+            // ---
+            return branch.PrivateRemoveValueAt(index, value);
+        }
+
         public void Set(uint index, object value, out bool isNew)
         {
             // Get the target branch - can only be null if we request readonly - we did not
@@ -232,6 +261,29 @@ namespace Theraot.Collections.ThreadSafe
                 return true;
             }
             previous = ((Leaf)_previous).Value;
+            return false;
+        }
+
+        private bool PrivateRemoveAt(uint index, out object previous)
+        {
+            var subindex = GetSubindex(index);
+            previous = Interlocked.Exchange(ref _entries[subindex], null);
+            if (previous == null)
+            {
+                return false;
+            }
+            previous = ((Leaf)previous).Value;
+            return true;
+        }
+
+        private bool PrivateRemoveValueAt(uint index, object value)
+        {
+            var subindex = GetSubindex(index);
+            var tmp = Interlocked.CompareExchange(ref _entries[subindex], null, null);
+            if (((Leaf) tmp).Value == value)
+            {
+                return Interlocked.CompareExchange(ref _entries[subindex], null, tmp) == tmp;
+            }
             return false;
         }
 

@@ -168,5 +168,72 @@ namespace Theraot.Collections.ThreadSafe
             }
             return false;
         }
+
+        /// <summary>
+        /// Removes the item at the specified index.
+        /// </summary>
+        /// <param name="index">The index.</param>
+        /// <returns>
+        ///   <c>true</c> if the item was removed; otherwise, <c>false</c>.
+        /// </returns>
+        /// <exception cref="System.ArgumentOutOfRangeException">index;index must be greater or equal to 0 and less than capacity</exception>
+        public bool RemoveAt(int index)
+        {
+            object _previous;
+            if (_root.RemoveAt(unchecked((uint)index), out _previous))
+            {
+                Interlocked.Decrement(ref _count);
+                return true;
+            }
+            return false;
+        }
+
+        /// <summary>
+        /// Removes the item at the specified index.
+        /// </summary>
+        /// <param name="index">The index.</param>
+        /// <param name="previous">The previous item in the specified index.</param>
+        /// <returns>
+        ///   <c>true</c> if the item was removed; otherwise, <c>false</c>.
+        /// </returns>
+        /// <exception cref="System.ArgumentOutOfRangeException">index;index must be greater or equal to 0 and less than capacity</exception>
+        public bool RemoveAt(int index, out T previous)
+        {
+            object _previous;
+            if (_root.RemoveAt(unchecked((uint)index), out _previous))
+            {
+                Interlocked.Decrement(ref _count);
+                if (ReferenceEquals(_previous, BucketHelper.Null))
+                {
+                    previous = default(T);
+                }
+                else
+                {
+                    previous = (T)_previous;
+                }
+                return true;
+            }
+            previous = default(T);
+            return false;
+        }
+
+        /// <summary>
+        /// Removes the item at the specified index if it matches the specified value.
+        /// </summary>
+        /// <param name="index">The index.</param>
+        /// <param name="value">The value intended to remove.</param>
+        /// <returns>
+        ///   <c>true</c> if the item was removed; otherwise, <c>false</c>.
+        /// </returns>
+        /// <exception cref="System.ArgumentOutOfRangeException">index;index must be greater or equal to 0 and less than capacity</exception>
+        public bool RemoveValueAt(int index, T value)
+        {
+            if (_root.RemoveValueAt(unchecked((uint)index), value))
+            {
+                Interlocked.Decrement(ref _count);
+                return true;
+            }
+            return false;
+        }
     }
 }

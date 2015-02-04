@@ -137,6 +137,75 @@ namespace Tests
         }
 
         [Test]
+        public void RemoveValueAt()
+        {
+            // RemoveValueAt only works with reference equality
+
+            var mapper = new Mapper<object>();
+            var Input = new object();
+            object result;
+            bool isNew;
+
+            //---
+
+            mapper.Set(0, Input, out isNew);
+            Assert.IsTrue(isNew);
+            Assert.IsTrue(mapper.TryGet(0, out result));
+            Assert.AreEqual(Input, result);
+
+            Assert.IsFalse(mapper.RemoveValueAt(0, null));
+
+            Assert.IsTrue(mapper.RemoveValueAt(0, Input));
+            Assert.IsFalse(mapper.TryGet(0, out result));
+
+            Assert.IsFalse(mapper.RemoveValueAt(0, null));
+
+            Assert.IsFalse(mapper.RemoveValueAt(1, null));
+            Assert.IsFalse(mapper.RemoveValueAt(1, Input));
+            Assert.IsFalse(mapper.TryGet(1, out result));
+
+            Assert.AreEqual(0, mapper.Count);
+        }
+
+        [Test]
+        public void RemoveAt()
+        {
+            var mapper = new Mapper<int>();
+            const int Input = 21;
+            int result;
+            bool isNew;
+
+            //---
+
+            mapper.Set(0, Input, out isNew);
+            Assert.IsTrue(isNew);
+            Assert.IsTrue(mapper.TryGet(0, out result));
+            Assert.AreEqual(Input, result);
+
+            Assert.IsTrue(mapper.RemoveAt(0, out result));
+            Assert.AreEqual(Input, result);
+            Assert.IsFalse(mapper.TryGet(0, out result));
+
+            Assert.IsFalse(mapper.RemoveAt(1, out result));
+            Assert.IsFalse(mapper.TryGet(1, out result));
+
+            //---
+
+            mapper.Set(0, Input, out isNew);
+            Assert.IsTrue(isNew);
+            Assert.IsTrue(mapper.TryGet(0, out result));
+            Assert.AreEqual(Input, result);
+
+            Assert.IsTrue(mapper.RemoveAt(0));
+            Assert.IsFalse(mapper.TryGet(0, out result));
+
+            Assert.IsFalse(mapper.RemoveAt(1));
+            Assert.IsFalse(mapper.TryGet(1, out result));
+
+            Assert.AreEqual(0, mapper.Count);
+        }
+
+        [Test]
         public void SetAndGet()
         {
             var mapper = new Mapper<int>();
@@ -147,6 +216,36 @@ namespace Tests
             Assert.IsTrue(isNew);
             Assert.IsTrue(mapper.TryGet(0, out result));
             Assert.AreEqual(Input, result);
+            Assert.AreEqual(1, mapper.Count);
+        }
+
+        [Test]
+        public void SetToNull()
+        {
+            var mapper = new Mapper<string>();
+            string result;
+            bool isNew;
+
+            Assert.IsTrue(mapper.Insert(0, null));
+            Assert.IsTrue(mapper.TryGet(0, out result));
+            Assert.AreEqual(null, result);
+
+            mapper.Set(0, "Hello", out isNew);
+            Assert.IsFalse(isNew);
+            Assert.IsTrue(mapper.TryGet(0, out result));
+            Assert.AreEqual("Hello", result);
+
+            mapper.Set(0, null, out isNew);
+            Assert.IsFalse(isNew);
+            Assert.IsTrue(mapper.TryGet(0, out result));
+            Assert.AreEqual(null, result);
+
+            mapper.Exchange(0, "Hello", out result);
+            Assert.AreEqual(null, result);
+
+            mapper.Exchange(0, null, out result);
+            Assert.AreEqual("Hello", result);
+
             Assert.AreEqual(1, mapper.Count);
         }
 
