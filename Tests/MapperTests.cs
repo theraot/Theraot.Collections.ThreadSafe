@@ -137,37 +137,6 @@ namespace Tests
         }
 
         [Test]
-        public void RemoveValueAt()
-        {
-            // RemoveValueAt only works with reference equality
-
-            var mapper = new Mapper<object>();
-            var Input = new object();
-            object result;
-            bool isNew;
-
-            //---
-
-            mapper.Set(0, Input, out isNew);
-            Assert.IsTrue(isNew);
-            Assert.IsTrue(mapper.TryGet(0, out result));
-            Assert.AreEqual(Input, result);
-
-            Assert.IsFalse(mapper.RemoveValueAt(0, null));
-
-            Assert.IsTrue(mapper.RemoveValueAt(0, Input));
-            Assert.IsFalse(mapper.TryGet(0, out result));
-
-            Assert.IsFalse(mapper.RemoveValueAt(0, null));
-
-            Assert.IsFalse(mapper.RemoveValueAt(1, null));
-            Assert.IsFalse(mapper.RemoveValueAt(1, Input));
-            Assert.IsFalse(mapper.TryGet(1, out result));
-
-            Assert.AreEqual(0, mapper.Count);
-        }
-
-        [Test]
         public void RemoveAt()
         {
             var mapper = new Mapper<int>();
@@ -308,6 +277,7 @@ namespace Tests
             threads[1].Join();
             Assert.AreEqual(1, mapper.Count);
         }
+
         private static int[][] GetSampleData()
         {
             return new[]

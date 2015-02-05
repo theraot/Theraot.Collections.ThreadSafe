@@ -109,21 +109,6 @@ namespace Theraot.Collections.ThreadSafe
             return branch.PrivateRemoveAt(index, out previous);
         }
 
-        public bool RemoveValueAt(uint index, object value)
-        {
-            // TODO: Shrink
-            // Get the target branch  - can be null
-            var branch = Map(index, true);
-            // Check if we got a branch
-            if (branch == null)
-            {
-                // We didn't get a branch, meaning that what we look for is not there
-                return false;
-            }
-            // ---
-            return branch.PrivateRemoveValueAt(index, value);
-        }
-
         public void Set(uint index, object value, out bool isNew)
         {
             // Get the target branch - can only be null if we request readonly - we did not
@@ -258,17 +243,6 @@ namespace Theraot.Collections.ThreadSafe
             }
             previous = ((Leaf)previous).Value;
             return true;
-        }
-
-        private bool PrivateRemoveValueAt(uint index, object value)
-        {
-            var subindex = GetSubindex(index);
-            var tmp = Interlocked.CompareExchange(ref _entries[subindex], null, null);
-            if (((Leaf) tmp).Value == value)
-            {
-                return Interlocked.CompareExchange(ref _entries[subindex], null, tmp) == tmp;
-            }
-            return false;
         }
 
         private void PrivateSet(uint index, object item, out bool isNew)

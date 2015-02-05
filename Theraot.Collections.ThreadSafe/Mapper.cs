@@ -209,24 +209,5 @@ namespace Theraot.Collections.ThreadSafe
             previous = default(T);
             return false;
         }
-
-        /// <summary>
-        /// Removes the item at the specified index if it matches the specified value.
-        /// </summary>
-        /// <param name="index">The index.</param>
-        /// <param name="value">The value intended to remove.</param>
-        /// <returns>
-        ///   <c>true</c> if the item was removed; otherwise, <c>false</c>.
-        /// </returns>
-        /// <exception cref="System.ArgumentOutOfRangeException">index;index must be greater or equal to 0 and less than capacity</exception>
-        public bool RemoveValueAt(int index, T value)
-        {
-            if (_root.RemoveValueAt(unchecked((uint)index), value))
-            {
-                Interlocked.Decrement(ref _count);
-                return true;
-            }
-            return false;
-        }
     }
 }
