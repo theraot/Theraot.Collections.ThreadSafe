@@ -11,25 +11,22 @@ namespace Theraot.Collections.ThreadSafe
 
         private static readonly Pool<Branch> _branchPool;
         private object[] _buffer;
+        private int _count;
+        private int _subindex;
+        private Branch _parent;
         private object[] _entries;
         private int _offset;
 
         static Branch()
         {
-            _branchPool = new Pool<Branch>
-                (
-                    16,
-                    branch =>
-                    {
-                        branch._entries = ArrayReservoir<object>.GetArray(INT_Capacity);
-                        branch._buffer = ArrayReservoir<object>.GetArray(INT_Capacity);
-                    }
-                );
+            _branchPool = new Pool<Branch>(16, Recycle);
         }
 
-        private Branch(int offset)
+        private Branch(int offset, Branch parent, int subindex)
         {
             _offset = offset;
+            _parent = parent;
+            _subindex = subindex;
             _entries = ArrayReservoir<object>.GetArray(INT_Capacity);
             _buffer = ArrayReservoir<object>.GetArray(INT_Capacity);
         }
@@ -39,18 +36,23 @@ namespace Theraot.Collections.ThreadSafe
             if (!AppDomain.CurrentDomain.IsFinalizingForUnload())
             {
                 ArrayReservoir<object>.DonateArray(_entries);
+                ArrayReservoir<object>.DonateArray(_buffer);
             }
         }
 
-        public static Branch Create(int offset)
+        public static Branch Create(int offset, Branch parent, int subindex)
         {
             Branch result;
             if (_branchPool.TryGet(out result))
             {
                 result._offset = offset;
+                result._parent = parent;
+                result._subindex = subindex;
+                result._entries = ArrayReservoir<object>.GetArray(INT_Capacity);
+                result._buffer = ArrayReservoir<object>.GetArray(INT_Capacity);
                 return result;
             }
-            return new Branch(offset);
+            return new Branch(offset, parent, subindex);
         }
 
         public bool Exchange(uint index, object item, out object previous)
@@ -95,7 +97,6 @@ namespace Theraot.Collections.ThreadSafe
 
         public bool RemoveAt(uint index, out object previous)
         {
-            // TODO: Shrink
             previous = null;
             // Get the target branch  - can be null
             var branch = Map(index, true);
@@ -106,7 +107,44 @@ namespace Theraot.Collections.ThreadSafe
                 return false;
             }
             // ---
-            return branch.PrivateRemoveAt(index, out previous);
+            if (branch.PrivateRemoveAt(index, out previous))
+            {
+                branch.Shrink();
+                return true;
+            }
+            return false;
+        }
+
+        private void Shrink()
+        {
+            if
+                (
+                    _parent != null
+                    && Interlocked.CompareExchange(ref _parent._buffer[_subindex], this, null) == null
+                    && Interlocked.CompareExchange(ref _count, 0, 0) == 0
+                    && Interlocked.CompareExchange(ref _parent._entries[_subindex], null, this) == this
+                )
+            {
+                if (Interlocked.CompareExchange(ref _count, 0, 0) == 0)
+                {
+                    var found = Interlocked.CompareExchange(ref _parent._buffer[_subindex], null, this);
+                    if (found == this)
+                    {
+                        var parent = _parent;
+                        _branchPool.Donate(this);
+                        parent.Shrink();
+                    }
+                }
+                else
+                {
+                    // TODO: test
+                    var found = Interlocked.CompareExchange(ref _parent._entries[_subindex], _parent._buffer[_subindex], null);
+                    if (found != null)
+                    {
+                        _branchPool.Donate(this);
+                    }
+                }
+            }
         }
 
         public void Set(uint index, object value, out bool isNew)
@@ -136,6 +174,14 @@ namespace Theraot.Collections.ThreadSafe
             return branch.PrivateTryGet(index, out value);
         }
 
+        private static void Recycle(Branch branch)
+        {
+            branch._entries = null;
+            branch._buffer = null;
+            branch._count = 0;
+            branch._parent = null;
+        }
+
         System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator()
         {
             return GetEnumerator();
@@ -155,24 +201,34 @@ namespace Theraot.Collections.ThreadSafe
             {
                 return node as Branch;
             }
-            var branch = Create(offset);
+            var branch = Create(offset, this, subindex);
             var result = Interlocked.CompareExchange(ref _buffer[subindex], branch, null) as Branch;
             if (result == null)
             {
-                var found = Interlocked.CompareExchange(ref _entries[subindex], branch, node);
-                if (found == node)
-                {
-                    Interlocked.Exchange(ref _buffer[subindex], null);
-                    return branch;
-                }
-                return (Branch)found;
+                result = branch;
             }
-            _branchPool.Donate(branch);
-            return result;
+            else
+            {
+                _branchPool.Donate(branch);
+            }
+            var found = Interlocked.CompareExchange(ref _entries[subindex], result, node);
+            if (found == node)
+            {
+                Interlocked.Exchange(ref _buffer[subindex], null);
+                return result;
+            }
+            return this;
+            // return (Branch)found;
         }
 
         private Branch Map(uint index, bool readOnly)
         {
+            // do we need a leaf?
+            if (_offset == 0)
+            {
+                // It is not responsability of this method to handle leafs
+                return this;
+            }
             object result;
             if (PrivateTryGetBranch(index, out result))
             {
@@ -195,14 +251,8 @@ namespace Theraot.Collections.ThreadSafe
             {
                 return null;
             }
-            // We can write, do we need a leaf?
-            if (_offset != 0)
-            {
-                return Grow(index).Map(index, false);
-            }
-            // We need to insert a leaf
-            // It is not responsability of this method to create leafs
-            return this;
+            // We can write
+            return Grow(index).Map(index, false);
         }
 
         private bool PrivateExchange(uint index, object item, out object previous)
@@ -212,6 +262,7 @@ namespace Theraot.Collections.ThreadSafe
             object _previous = Interlocked.Exchange(ref _entries[subindex], Leaf.Create(index, item));
             if (_previous == null)
             {
+                Interlocked.Increment(ref _count);
                 return true;
             }
             var leaf = ((Leaf)_previous);
@@ -227,6 +278,7 @@ namespace Theraot.Collections.ThreadSafe
             object _previous = Interlocked.CompareExchange(ref _entries[subindex], Leaf.Create(index, item), null);
             if (_previous == null)
             {
+                Interlocked.Increment(ref _count);
                 return true;
             }
             previous = ((Leaf)_previous).Value;
@@ -242,6 +294,7 @@ namespace Theraot.Collections.ThreadSafe
                 return false;
             }
             previous = ((Leaf)previous).Value;
+            Interlocked.Decrement(ref _count);
             return true;
         }
 
@@ -252,6 +305,7 @@ namespace Theraot.Collections.ThreadSafe
             object _previous = Interlocked.Exchange(ref _entries[subindex], Leaf.Create(index, item));
             if (_previous == null)
             {
+                Interlocked.Increment(ref _count);
                 isNew = true;
             }
             else
