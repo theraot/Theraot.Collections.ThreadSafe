@@ -247,11 +247,74 @@ namespace Tests
         }
 
         [Test]
+        public void ThreeThreadsRemoveAt()
+        {
+            var mapper = new Mapper<int>();
+            const int Input = 21;
+            var info = new CircularBucket<string>(16);
+
+            var startEvent = new ManualResetEvent(false);
+            int[] done = { 0 };
+            var threads = new[]
+            {
+                new Thread
+                (
+                    () =>
+                    {
+                        int result;
+                        bool isNew;
+                        mapper.Set(0, Input, out isNew);
+                        info.Add("A: Set - was new: " + isNew);
+                        bool removed = mapper.RemoveAt(0, out result);
+                        info.Add(removed ? "A: Removed" : "A: Could not remove");
+                        Interlocked.Increment(ref done[0]);
+                    }
+                ),
+                new Thread
+                (
+                    () =>
+                    {
+                        int result;
+                        bool isNew;
+                        mapper.Set(0, Input, out isNew);
+                        info.Add("B: Set - was new: " + isNew);
+                        bool removed = mapper.RemoveAt(0, out result);
+                        info.Add(removed ? "B: Removed" : "B: Could not remove");
+                        Interlocked.Increment(ref done[0]);
+                    }
+                ),
+                new Thread
+                (
+                    () =>
+                    {
+                        int result;
+                        bool removed = mapper.RemoveAt(0, out result);
+                        info.Add(removed ? "C: Removed" : "C: Could not remove");
+                        Interlocked.Increment(ref done[0]);
+                    }
+                )
+            };
+            threads[0].Start();
+            threads[1].Start();
+            threads[2].Start();
+            startEvent.Set();
+            while (true)
+            {
+                if (Thread.VolatileRead(ref done[0]) == 3)
+                {
+                    break;
+                }
+                Thread.Sleep(0);
+            }
+            Assert.AreEqual(0, mapper.Count);
+        }
+
+        [Test]
         public void TwoThreads()
         {
             var mapper = new Mapper<int>();
             var startEvent = new ManualResetEvent(false);
-            var threads = new []
+            var threads = new[]
             {
                 new Thread
                 (
@@ -276,6 +339,58 @@ namespace Tests
             threads[0].Join();
             threads[1].Join();
             Assert.AreEqual(1, mapper.Count);
+        }
+
+        [Test]
+        public void TwoThreadsRemoveAt()
+        {
+            var mapper = new Mapper<int>();
+            const int Input = 21;
+            var info = new CircularBucket<string>(16);
+
+            var startEvent = new ManualResetEvent(false);
+            int[] done = {0};
+            var threads = new[]
+            {
+                new Thread
+                (
+                    () =>
+                    {
+                        int result;
+                        bool isNew;
+                        mapper.Set(0, Input, out isNew);
+                        info.Add("A: Set - was new: " + isNew);
+                        bool removed = mapper.RemoveAt(0, out result);
+                        info.Add(removed ? "A: Removed" : "A: Could not remove");
+                        Interlocked.Increment(ref done[0]);
+                    }
+                ),
+                new Thread
+                (
+                    () =>
+                    {
+                        int result;
+                        bool isNew;
+                        mapper.Set(0, Input, out isNew);
+                        info.Add("B: Set - was new: " + isNew);
+                        bool removed = mapper.RemoveAt(0, out result);
+                        info.Add(removed ? "B: Removed" : "B: Could not remove");
+                        Interlocked.Increment(ref done[0]);
+                    }
+                )
+            };
+            threads[0].Start();
+            threads[1].Start();
+            startEvent.Set();
+            while (true)
+            {
+                if (Thread.VolatileRead(ref done[0]) == 2)
+                {
+                    break;
+                }
+                Thread.Sleep(0);
+            }
+            Assert.AreEqual(0, mapper.Count);
         }
 
         private static int[][] GetSampleData()

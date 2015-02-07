@@ -11,7 +11,7 @@ namespace Theraot.Collections.ThreadSafe
 
         private static readonly Pool<Branch> _branchPool;
         private object[] _buffer;
-        private int _count;
+        private int _useCount;
         private int _subindex;
         private Branch _parent;
         private object[] _entries;
@@ -57,10 +57,24 @@ namespace Theraot.Collections.ThreadSafe
 
         public bool Exchange(uint index, object item, out object previous)
         {
-            // Get the target branch - can only be null if we request readonly - we did not
-            Branch branch = Map(index, false);
+            // Get the target branches
+            int resultCount;
+            var branches = Map(index, out resultCount);
             // ---
-            return branch.PrivateExchange(index, item, out previous);
+            var branch = branches[resultCount - 1];
+            var result = branch.PrivateExchange(index, item, out previous);
+            Leave(branches, resultCount);
+            return result;
+        }
+
+        private static void Leave(Branch[] branches, int resultCount)
+        {
+            for (int index = 0; index < resultCount; index++)
+            {
+                var branch = branches[index];
+                Interlocked.Decrement(ref branch._useCount);
+            }
+            ArrayReservoir<Branch>.DonateArray(branches);
         }
 
         public IEnumerator<object> GetEnumerator()
@@ -87,10 +101,14 @@ namespace Theraot.Collections.ThreadSafe
 
         public bool Insert(uint index, object item, out object previous)
         {
-            // Get the target branch - can only be null if we request readonly - we did not
-            Branch branch = Map(index, false);
+            // Get the target branches
+            int resultCount;
+            var branches = Map(index, out resultCount);
             // ---
-            return branch.PrivateInsert(index, item, out previous);
+            var branch = branches[resultCount - 1];
+            var result = branch.PrivateInsert(index, item, out previous);
+            Leave(branches, resultCount);
+            return result;
             // if this returns true, the new item was inserted, so there was no previous item
             // if this returns false, something was inserted first... so we get the previous item
         }
@@ -99,7 +117,7 @@ namespace Theraot.Collections.ThreadSafe
         {
             previous = null;
             // Get the target branch  - can be null
-            var branch = Map(index, true);
+            var branch = MapReadonly(index);
             // Check if we got a branch
             if (branch == null)
             {
@@ -121,27 +139,29 @@ namespace Theraot.Collections.ThreadSafe
                 (
                     _parent != null
                     && Interlocked.CompareExchange(ref _parent._buffer[_subindex], this, null) == null
-                    && Interlocked.CompareExchange(ref _count, 0, 0) == 0
-                    && Interlocked.CompareExchange(ref _parent._entries[_subindex], null, this) == this
+                    && Interlocked.CompareExchange(ref _useCount, 0, 0) == 0
+                    && Interlocked.CompareExchange(ref _parent._entries[_subindex], null, this) == this // Did --
                 )
             {
-                if (Interlocked.CompareExchange(ref _count, 0, 0) == 0)
+                if (Interlocked.CompareExchange(ref _useCount, 0, 0) == 0)
                 {
                     var found = Interlocked.CompareExchange(ref _parent._buffer[_subindex], null, this);
                     if (found == this)
                     {
                         var parent = _parent;
                         _branchPool.Donate(this);
+                        Interlocked.Decrement(ref parent._useCount); // did not undo --
                         parent.Shrink();
                     }
                 }
                 else
                 {
-                    // TODO: test
                     var found = Interlocked.CompareExchange(ref _parent._entries[_subindex], _parent._buffer[_subindex], null);
                     if (found != null)
                     {
+                        var parent = _parent;
                         _branchPool.Donate(this);
+                        Interlocked.Decrement(ref parent._useCount); // did not undo --
                     }
                 }
             }
@@ -149,10 +169,13 @@ namespace Theraot.Collections.ThreadSafe
 
         public void Set(uint index, object value, out bool isNew)
         {
-            // Get the target branch - can only be null if we request readonly - we did not
-            Branch branch = Map(index, false);
+            // Get the target branches
+            int resultCount;
+            var branches = Map(index, out resultCount);
             // ---
+            var branch = branches[resultCount - 1];
             branch.PrivateSet(index, value, out isNew);
+            Leave(branches, resultCount);
             // if this returns true, the new item was inserted, so isNew is set to true
             // if this returns false, some other thread inserted first... so isNew is set to false
             // yet we pretend we inserted first and the value was replaced by the other thread
@@ -163,7 +186,7 @@ namespace Theraot.Collections.ThreadSafe
         {
             value = null;
             // Get the target branch  - can be null
-            var branch = Map(index, true);
+            var branch = MapReadonly(index);
             // Check if we got a branch
             if (branch == null)
             {
@@ -178,7 +201,7 @@ namespace Theraot.Collections.ThreadSafe
         {
             branch._entries = null;
             branch._buffer = null;
-            branch._count = 0;
+            branch._useCount = 0;
             branch._parent = null;
         }
 
@@ -194,15 +217,19 @@ namespace Theraot.Collections.ThreadSafe
 
         private Branch Grow(uint index)
         {
+            // Grow is never called when _offset == 0
+            Interlocked.Increment(ref _useCount); // We are most likely to add - overstatimate count
             var offset = _offset - INT_OffsetStep;
             var subindex = GetSubindex(index);
             var node = _entries[subindex];
-            if (node is Branch)
+            // node can only be Branch or null
+            if (node != null)
             {
+                // Already grown
                 return node as Branch;
             }
             var branch = Create(offset, this, subindex);
-            var result = Interlocked.CompareExchange(ref _buffer[subindex], branch, null) as Branch;
+            var result = Interlocked.CompareExchange(ref _buffer[subindex], branch, null);
             if (result == null)
             {
                 result = branch;
@@ -211,60 +238,80 @@ namespace Theraot.Collections.ThreadSafe
             {
                 _branchPool.Donate(branch);
             }
-            var found = Interlocked.CompareExchange(ref _entries[subindex], result, node);
-            if (found == node)
+            var found = Interlocked.CompareExchange(ref _entries[subindex], result, null);
+            if (found == null)
             {
                 Interlocked.Exchange(ref _buffer[subindex], null);
-                return result;
+                return result as Branch;
             }
+            Interlocked.Decrement(ref _useCount); // We did not add after all
             return this;
-            // return (Branch)found;
         }
-
-        private Branch Map(uint index, bool readOnly)
+        
+        private Branch MapReadonly(uint index)
         {
-            // do we need a leaf?
-            if (_offset == 0)
+            var branch = this;
+            while (true)
             {
-                // It is not responsability of this method to handle leafs
-                return this;
-            }
-            object result;
-            if (PrivateTryGetBranch(index, out result))
-            {
-                var leaf = result as Leaf;
-                if (leaf == null)
+                // do we need a leaf?
+                if (branch._offset == 0)
                 {
-                    var branch = result as Branch;
-                    if (branch == null)
-                    {
-                        return this;
-                    }
-                    return branch.Map(index, readOnly);
+                    // It is not responsability of this method to handle leafs
+                    return branch;
                 }
-                if (leaf.Index == index)
+                object found;
+                if (branch.PrivateTryGetBranch(index, out found))
                 {
-                    return this;
+                    // if found were null, PrivateTryGetBranch would have returned false
+                    // if found cannot be a leaf, because Leaf only appear on _offset == 0
+                    // only Branch and Leaf are inserted, ergo... found is Branch
+                    branch = (Branch) found;
+                    continue;
                 }
-            }
-            if (readOnly)
-            {
                 return null;
             }
-            // We can write
-            return Grow(index).Map(index, false);
+        }
+
+        private Branch[] Map(uint index, out int resultCount)
+        {
+            var result = ArrayReservoir<Branch>.GetArray(16);
+            var branch = this;
+            resultCount = 0;
+            while (true)
+            {
+                Interlocked.Increment(ref branch._useCount);
+                result[resultCount] = branch;
+                resultCount++;
+                // do we need a leaf?
+                if (branch._offset == 0)
+                {
+                    // It is not responsability of this method to handle leafs
+                    return result;
+                }
+                object found;
+                if (branch.PrivateTryGetBranch(index, out found))
+                {
+                    // if found were null, PrivateTryGetBranch would have returned false
+                    // if found cannot be a leaf, because Leaf only appear on _offset == 0
+                    // only Branch and Leaf are inserted, ergo... found is Branch
+                    branch = (Branch) found;
+                    continue;
+                }
+                branch = branch.Grow(index);
+            }
         }
 
         private bool PrivateExchange(uint index, object item, out object previous)
         {
+            Interlocked.Increment(ref _useCount); // We are most likely to add - overstatimate count
             previous = null;
             var subindex = GetSubindex(index);
             object _previous = Interlocked.Exchange(ref _entries[subindex], Leaf.Create(index, item));
             if (_previous == null)
             {
-                Interlocked.Increment(ref _count);
                 return true;
             }
+            Interlocked.Decrement(ref _useCount); // We did not add after all
             var leaf = ((Leaf)_previous);
             previous = leaf.Value;
             Leaf.Donate(leaf);
@@ -273,43 +320,54 @@ namespace Theraot.Collections.ThreadSafe
 
         private bool PrivateInsert(uint index, object item, out object previous)
         {
+            Interlocked.Increment(ref _useCount); // We are most likely to add - overstatimate count
             var subindex = GetSubindex(index);
             previous = null;
             object _previous = Interlocked.CompareExchange(ref _entries[subindex], Leaf.Create(index, item), null);
             if (_previous == null)
             {
-                Interlocked.Increment(ref _count);
                 return true;
             }
+            Interlocked.Decrement(ref _useCount); // We did not add after all
             previous = ((Leaf)_previous).Value;
             return false;
         }
 
         private bool PrivateRemoveAt(uint index, out object previous)
         {
-            var subindex = GetSubindex(index);
-            previous = Interlocked.Exchange(ref _entries[subindex], null);
-            if (previous == null)
+            try
             {
-                return false;
+                var subindex = GetSubindex(index);
+                previous = Interlocked.Exchange(ref _entries[subindex], null);
+                if (previous == null)
+                {
+                    return false;
+                }
+                previous = ((Leaf) previous).Value;
+                Interlocked.Decrement(ref _useCount);
+                return true;
             }
-            previous = ((Leaf)previous).Value;
-            Interlocked.Decrement(ref _count);
-            return true;
+            catch (NullReferenceException)
+            {
+                // Eating null reference, the branch has been removed
+                previous = null;
+            }
+            return false;
         }
 
         private void PrivateSet(uint index, object item, out bool isNew)
         {
+            Interlocked.Increment(ref _useCount); // We are most likely to add - overstatimate count
             var subindex = GetSubindex(index);
             isNew = false;
             object _previous = Interlocked.Exchange(ref _entries[subindex], Leaf.Create(index, item));
             if (_previous == null)
             {
-                Interlocked.Increment(ref _count);
                 isNew = true;
             }
             else
             {
+                Interlocked.Decrement(ref _useCount); // We did not add after all
                 var leaf = ((Leaf)_previous);
                 Leaf.Donate(leaf);
             }
@@ -317,26 +375,44 @@ namespace Theraot.Collections.ThreadSafe
 
         private bool PrivateTryGet(uint index, out object previous)
         {
-            var subindex = GetSubindex(index);
-            previous = null;
-            var _previous = Interlocked.CompareExchange(ref _entries[subindex], null, null);
-            if (_previous == null)
+            try
             {
-                return false;
+                var subindex = GetSubindex(index);
+                previous = null;
+                var _previous = Interlocked.CompareExchange(ref _entries[subindex], null, null);
+                if (_previous == null)
+                {
+                    return false;
+                }
+                previous = ((Leaf) _previous).Value;
+                return true;
             }
-            previous = ((Leaf)_previous).Value;
-            return true;
+            catch (NullReferenceException)
+            {
+                // Eating null reference, the branch has been removed
+                previous = null;
+            }
+            return false;
         }
 
         private bool PrivateTryGetBranch(uint index, out object previous)
         {
-            var subindex = GetSubindex(index);
-            previous = Interlocked.CompareExchange(ref _entries[subindex], null, null);
-            if (previous == null)
+            try
             {
-                return false;
+                var subindex = GetSubindex(index);
+                previous = Interlocked.CompareExchange(ref _entries[subindex], null, null);
+                if (previous == null)
+                {
+                    return false;
+                }
+                return true;
             }
-            return true;
+            catch (NullReferenceException)
+            {
+                // Eating null reference, the branch has been removed
+                previous = null;
+            }
+            return false;
         }
     }
 }
