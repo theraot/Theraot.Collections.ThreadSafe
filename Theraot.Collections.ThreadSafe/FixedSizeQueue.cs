@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Diagnostics.CodeAnalysis;
 using System.Threading;
 using Theraot.Core;
 
@@ -50,31 +49,6 @@ namespace Theraot.Collections.ThreadSafe
             get
             {
                 return _entries.Count;
-            }
-        }
-
-        /// <summary>
-        /// Gets the index where the next item removed with TryDequeue will be taken from.
-        /// </summary>
-        /// <remarks>IndexDequeue increases each time a new item is removed with TryDequeue.</remarks>
-        [SuppressMessage("StyleCop.CSharp.DocumentationRules", "SA1650:ElementDocumentationMustBeSpelledCorrectly", Justification = "Dequeue")]
-        public int IndexDequeue
-        {
-            get
-            {
-                return Thread.VolatileRead(ref _indexDequeue) & (_capacity - 1);
-            }
-        }
-
-        /// <summary>
-        /// Gets the index where the last item added with Enqueue was placed.
-        /// </summary>
-        /// <remarks>IndexEnqueue increases each time a new item is added with Enqueue.</remarks>
-        public int IndexEnqueue
-        {
-            get
-            {
-                return Thread.VolatileRead(ref _indexEnqueue) & (_capacity - 1);
             }
         }
 
