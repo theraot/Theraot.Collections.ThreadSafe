@@ -199,6 +199,15 @@ namespace Tests
             Assert.IsTrue(mapper.TryGet(0, out result));
             Assert.AreEqual(null, result);
 
+            Assert.IsTrue(mapper.RemoveAt(0, out result));
+            Assert.AreEqual(null, result);
+
+            Assert.IsTrue(mapper.Exchange(0, null, out result));
+            Assert.AreEqual(null, result);
+
+            Assert.IsFalse(mapper.Insert(0, null, out result));
+            Assert.AreEqual(null, result);
+
             mapper.Set(0, "Hello", out isNew);
             Assert.IsFalse(isNew);
             Assert.IsTrue(mapper.TryGet(0, out result));
