@@ -166,11 +166,6 @@ namespace Theraot.Collections.ThreadSafe
             }
         }
 
-        public void Add(KeyValuePair<TKey, TValue> item)
-        {
-            AddNew(item.Key, item.Value);
-        }
-
         /// <summary>
         /// Adds the specified key and associated value.
         /// </summary>
@@ -306,6 +301,7 @@ namespace Theraot.Collections.ThreadSafe
         /// </returns>
         public bool Remove(TKey key)
         {
+            // TODO: TryGet -> Check -> RemoveAt combo
             var hashcode = _keyComparer.GetHashCode(key);
             for (var attempts = 0; attempts < _probing; attempts++)
             {
@@ -337,6 +333,7 @@ namespace Theraot.Collections.ThreadSafe
         /// </returns>
         public bool Remove(TKey key, out TValue value)
         {
+            // TODO: TryGet -> Check -> RemoveAt combo
             value = default(TValue);
             var hashcode = _keyComparer.GetHashCode(key);
             for (var attempts = 0; attempts < _probing; attempts++)
@@ -371,6 +368,7 @@ namespace Theraot.Collections.ThreadSafe
         /// </returns>
         public bool Remove(int hashcode, Predicate<TKey> keyCheck, out TValue value)
         {
+            // TODO: TryGet -> Check -> RemoveAt combo
             value = default(TValue);
             for (var attempts = 0; attempts < _probing; attempts++)
             {
@@ -446,6 +444,7 @@ namespace Theraot.Collections.ThreadSafe
         /// <param name="value">The value.</param>
         public void Set(TKey key, TValue value)
         {
+            // TODO: TryGet -> Check -> Set combo
             var hashcode = _keyComparer.GetHashCode(key);
             var neo = new KeyValuePair<TKey, TValue>(key, value);
             for (var attempts = 0; ; attempts++)
@@ -603,6 +602,11 @@ namespace Theraot.Collections.ThreadSafe
             }
         }
 
+        void ICollection<KeyValuePair<TKey, TValue>>.Add(KeyValuePair<TKey, TValue> item)
+        {
+            AddNew(item.Key, item.Value);
+        }
+
         void IDictionary<TKey, TValue>.Add(TKey key, TValue value)
         {
             AddNew(key, value);
@@ -644,6 +648,7 @@ namespace Theraot.Collections.ThreadSafe
 
         bool ICollection<KeyValuePair<TKey, TValue>>.Remove(KeyValuePair<TKey, TValue> item)
         {
+            // TODO: TryGet -> Check -> RemoveAt combo
             int hashcode = _keyComparer.GetHashCode(item.Key);
             for (var attempts = 0; attempts < _probing; attempts++)
             {
