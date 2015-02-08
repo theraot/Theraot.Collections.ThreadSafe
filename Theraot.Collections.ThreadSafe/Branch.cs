@@ -304,17 +304,17 @@ namespace Theraot.Collections.ThreadSafe
         private bool PrivateExchange(uint index, object item, out object previous)
         {
             Interlocked.Increment(ref _useCount); // We are most likely to add - overstatimate count
-            previous = null;
             var subindex = GetSubindex(index);
-            object _previous = Interlocked.Exchange(ref _entries[subindex], Leaf.Create(index, item));
-            if (_previous == null)
+            previous = Interlocked.Exchange(ref _entries[subindex], item ?? BucketHelper.Null);
+            if (previous == null)
             {
                 return true;
             }
+            if (previous == BucketHelper.Null)
+            {
+                previous = null;
+            }
             Interlocked.Decrement(ref _useCount); // We did not add after all
-            var leaf = ((Leaf)_previous);
-            previous = leaf.Value;
-            Leaf.Donate(leaf);
             return false;
         }
 
@@ -322,14 +322,16 @@ namespace Theraot.Collections.ThreadSafe
         {
             Interlocked.Increment(ref _useCount); // We are most likely to add - overstatimate count
             var subindex = GetSubindex(index);
-            previous = null;
-            object _previous = Interlocked.CompareExchange(ref _entries[subindex], Leaf.Create(index, item), null);
-            if (_previous == null)
+            previous = Interlocked.CompareExchange(ref _entries[subindex], item ?? BucketHelper.Null, null);
+            if (previous == null)
             {
                 return true;
             }
+            if (previous == BucketHelper.Null)
+            {
+                previous = null;
+            }
             Interlocked.Decrement(ref _useCount); // We did not add after all
-            previous = ((Leaf)_previous).Value;
             return false;
         }
 
@@ -343,7 +345,10 @@ namespace Theraot.Collections.ThreadSafe
                 {
                     return false;
                 }
-                previous = ((Leaf) previous).Value;
+                if (previous == BucketHelper.Null)
+                {
+                    previous = null;
+                }
                 Interlocked.Decrement(ref _useCount);
                 return true;
             }
@@ -360,16 +365,14 @@ namespace Theraot.Collections.ThreadSafe
             Interlocked.Increment(ref _useCount); // We are most likely to add - overstatimate count
             var subindex = GetSubindex(index);
             isNew = false;
-            object _previous = Interlocked.Exchange(ref _entries[subindex], Leaf.Create(index, item));
-            if (_previous == null)
+            var previous = Interlocked.Exchange(ref _entries[subindex], item ?? BucketHelper.Null);
+            if (previous == null)
             {
                 isNew = true;
             }
             else
             {
                 Interlocked.Decrement(ref _useCount); // We did not add after all
-                var leaf = ((Leaf)_previous);
-                Leaf.Donate(leaf);
             }
         }
 
@@ -378,13 +381,15 @@ namespace Theraot.Collections.ThreadSafe
             try
             {
                 var subindex = GetSubindex(index);
-                previous = null;
-                var _previous = Interlocked.CompareExchange(ref _entries[subindex], null, null);
-                if (_previous == null)
+                previous = Interlocked.CompareExchange(ref _entries[subindex], null, null);
+                if (previous == null)
                 {
                     return false;
                 }
-                previous = ((Leaf) _previous).Value;
+                if (previous == BucketHelper.Null)
+                {
+                    previous = null;
+                }
                 return true;
             }
             catch (NullReferenceException)

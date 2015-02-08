@@ -42,7 +42,6 @@
     <Compile Include="FixedSizeQueue.cs" />
     <Compile Include="CircularBucket.cs" />
     <Compile Include="Branch.cs" />
-    <Compile Include="Leaf.cs" />
     <Compile Include="Mapper.cs" />
     <Compile Include="NumericHelper.cs" />
     <Compile Include="Pool.cs" />
