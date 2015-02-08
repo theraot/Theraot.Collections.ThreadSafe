@@ -39,9 +39,12 @@
     <Compile Include="ArrayReservoir.cs" />
     <Compile Include="Bucket.cs" />
     <Compile Include="BucketHelper.cs" />
+    <Compile Include="SafeQueue.cs" />
     <Compile Include="FixedSizeQueue.cs" />
     <Compile Include="CircularBucket.cs" />
     <Compile Include="Branch.cs" />
+    <Compile Include="SafeSet.cs" />
+    <Compile Include="SafeDictionary.cs" />
     <Compile Include="Mapper.cs" />
     <Compile Include="NumericHelper.cs" />
     <Compile Include="Pool.cs" />
