@@ -7,7 +7,7 @@ namespace Theraot.Collections.ThreadSafe
         where T : class
     {
         private readonly int _id;
-        private readonly FixedSizeQueueBucket<T> _entries;
+        private readonly FixedSizeQueue<T> _entries;
         private readonly Action<T> _recycler;
 
         public Pool(int capacity, Action<T> recycler)
@@ -17,7 +17,7 @@ namespace Theraot.Collections.ThreadSafe
                 throw new ArgumentNullException("recycler");
             }
             _id = PoolHelper.GetId();
-            _entries = new FixedSizeQueueBucket<T>(capacity);
+            _entries = new FixedSizeQueue<T>(capacity);
             _recycler = recycler;
         }
 

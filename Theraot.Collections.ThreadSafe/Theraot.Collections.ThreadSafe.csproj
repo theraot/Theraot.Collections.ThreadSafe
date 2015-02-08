@@ -39,7 +39,7 @@
     <Compile Include="ArrayReservoir.cs" />
     <Compile Include="Bucket.cs" />
     <Compile Include="BucketHelper.cs" />
-    <Compile Include="FixedSizeQueueBucket.cs" />
+    <Compile Include="FixedSizeQueue.cs" />
     <Compile Include="CircularBucket.cs" />
     <Compile Include="Branch.cs" />
     <Compile Include="Leaf.cs" />
