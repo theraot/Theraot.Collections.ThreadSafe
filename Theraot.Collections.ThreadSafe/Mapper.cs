@@ -4,6 +4,7 @@ using System.Threading;
 
 namespace Theraot.Collections.ThreadSafe
 {
+    [Serializable]
     public class Mapper<T> : IEnumerable<T>
     {
         private const int INT_MaxOffset = 32;
@@ -143,32 +144,6 @@ namespace Theraot.Collections.ThreadSafe
             return false;
         }
 
-        public void Set(int index, T value, out bool isNew)
-        {
-            _root.Set(unchecked((uint)index), value, out isNew);
-            if (isNew)
-            {
-                Interlocked.Increment(ref _count);
-            }
-        }
-
-        System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator()
-        {
-            return GetEnumerator();
-        }
-
-        public bool TryGet(int index, out T value)
-        {
-            value = default(T);
-            object valueObject;
-            if (_root.TryGet(unchecked((uint) index), out valueObject))
-            {
-                value = (T)valueObject;
-                return true;
-            }
-            return false;
-        }
-
         /// <summary>
         /// Removes the item at the specified index.
         /// </summary>
@@ -208,6 +183,54 @@ namespace Theraot.Collections.ThreadSafe
             }
             previous = default(T);
             return false;
+        }
+
+        public void Set(int index, T value, out bool isNew)
+        {
+            _root.Set(unchecked((uint)index), value, out isNew);
+            if (isNew)
+            {
+                Interlocked.Increment(ref _count);
+            }
+        }
+
+        public bool TryGet(int index, out T value)
+        {
+            value = default(T);
+            object valueObject;
+            if (_root.TryGet(unchecked((uint)index), out valueObject))
+            {
+                value = (T)valueObject;
+                return true;
+            }
+            return false;
+        }
+
+        /// <summary>
+        /// Returns the values where the predicate is satisfied.
+        /// </summary>
+        /// <param name="predicate">The predicate.</param>
+        /// <returns>
+        /// An <see cref="IEnumerable{T}" /> that allows to iterate over the removed values.
+        /// </returns>
+        /// <remarks>
+        /// It is not guaranteed that all the values that satisfies the predicate will be removed.
+        /// </remarks>
+        public IEnumerable<T> Where(Predicate<T> predicate)
+        {
+            if (predicate == null)
+            {
+                throw new ArgumentNullException("predicate");
+            }
+            foreach (var value in _root.Where(value => predicate((T)value)))
+            {
+                yield return (T) value;
+            }
+        }
+
+        System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator()
+        {
+            return GetEnumerator();
         }
     }
 }

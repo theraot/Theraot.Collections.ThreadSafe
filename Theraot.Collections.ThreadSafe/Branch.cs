@@ -4,6 +4,7 @@ using System.Threading;
 
 namespace Theraot.Collections.ThreadSafe
 {
+    [Serializable]
     internal class Branch : IEnumerable<object>
     {
         private const int INT_Capacity = 1 << INT_OffsetStep;
@@ -11,11 +12,11 @@ namespace Theraot.Collections.ThreadSafe
 
         private static readonly Pool<Branch> _branchPool;
         private object[] _buffer;
-        private int _useCount;
-        private int _subindex;
-        private Branch _parent;
         private object[] _entries;
         private int _offset;
+        private Branch _parent;
+        private int _subindex;
+        private int _useCount;
 
         static Branch()
         {
@@ -65,16 +66,6 @@ namespace Theraot.Collections.ThreadSafe
             var result = branch.PrivateExchange(index, item, out previous);
             Leave(branches, resultCount);
             return result;
-        }
-
-        private static void Leave(Branch[] branches, int resultCount)
-        {
-            for (int index = 0; index < resultCount; index++)
-            {
-                var branch = branches[index];
-                Interlocked.Decrement(ref branch._useCount);
-            }
-            ArrayReservoir<Branch>.DonateArray(branches);
         }
 
         public IEnumerator<object> GetEnumerator()
@@ -133,40 +124,6 @@ namespace Theraot.Collections.ThreadSafe
             return false;
         }
 
-        private void Shrink()
-        {
-            if
-                (
-                    _parent != null
-                    && Interlocked.CompareExchange(ref _parent._buffer[_subindex], this, null) == null
-                    && Interlocked.CompareExchange(ref _useCount, 0, 0) == 0
-                    && Interlocked.CompareExchange(ref _parent._entries[_subindex], null, this) == this // Did --
-                )
-            {
-                if (Interlocked.CompareExchange(ref _useCount, 0, 0) == 0)
-                {
-                    var found = Interlocked.CompareExchange(ref _parent._buffer[_subindex], null, this);
-                    if (found == this)
-                    {
-                        var parent = _parent;
-                        _branchPool.Donate(this);
-                        Interlocked.Decrement(ref parent._useCount); // did not undo --
-                        parent.Shrink();
-                    }
-                }
-                else
-                {
-                    var found = Interlocked.CompareExchange(ref _parent._entries[_subindex], _parent._buffer[_subindex], null);
-                    if (found != null)
-                    {
-                        var parent = _parent;
-                        _branchPool.Donate(this);
-                        Interlocked.Decrement(ref parent._useCount); // did not undo --
-                    }
-                }
-            }
-        }
-
         public void Set(uint index, object value, out bool isNew)
         {
             // Get the target branches
@@ -197,6 +154,41 @@ namespace Theraot.Collections.ThreadSafe
             return branch.PrivateTryGet(index, out value);
         }
 
+        public IEnumerable<object> Where(Predicate<object> predicate)
+        {
+            for (var index = 0; index < _entries.Length; index++)
+            {
+                var child = _entries[index];
+                if (!ReferenceEquals(child, null))
+                {
+                    var items = child as Branch;
+                    if (items != null)
+                    {
+                        foreach (var item in items.Where(predicate))
+                        {
+                            yield return item;
+                        }
+                    }
+                    else
+                    {
+                        if (predicate(child))
+                        {
+                            yield return child;
+                        }
+                    }
+                }
+            }
+        }
+
+        private static void Leave(Branch[] branches, int resultCount)
+        {
+            for (int index = 0; index < resultCount; index++)
+            {
+                var branch = branches[index];
+                Interlocked.Decrement(ref branch._useCount);
+            }
+            ArrayReservoir<Branch>.DonateArray(branches);
+        }
         private static void Recycle(Branch branch)
         {
             branch._entries = null;
@@ -247,30 +239,6 @@ namespace Theraot.Collections.ThreadSafe
             Interlocked.Decrement(ref _useCount); // We did not add after all
             return this;
         }
-        
-        private Branch MapReadonly(uint index)
-        {
-            var branch = this;
-            while (true)
-            {
-                // do we need a leaf?
-                if (branch._offset == 0)
-                {
-                    // It is not responsability of this method to handle leafs
-                    return branch;
-                }
-                object found;
-                if (branch.PrivateTryGetBranch(index, out found))
-                {
-                    // if found were null, PrivateTryGetBranch would have returned false
-                    // if found cannot be a leaf, because Leaf only appear on _offset == 0
-                    // only Branch and Leaf are inserted, ergo... found is Branch
-                    branch = (Branch) found;
-                    continue;
-                }
-                return null;
-            }
-        }
 
         private Branch[] Map(uint index, out int resultCount)
         {
@@ -294,10 +262,34 @@ namespace Theraot.Collections.ThreadSafe
                     // if found were null, PrivateTryGetBranch would have returned false
                     // if found cannot be a leaf, because Leaf only appear on _offset == 0
                     // only Branch and Leaf are inserted, ergo... found is Branch
-                    branch = (Branch) found;
+                    branch = (Branch)found;
                     continue;
                 }
                 branch = branch.Grow(index);
+            }
+        }
+
+        private Branch MapReadonly(uint index)
+        {
+            var branch = this;
+            while (true)
+            {
+                // do we need a leaf?
+                if (branch._offset == 0)
+                {
+                    // It is not responsability of this method to handle leafs
+                    return branch;
+                }
+                object found;
+                if (branch.PrivateTryGetBranch(index, out found))
+                {
+                    // if found were null, PrivateTryGetBranch would have returned false
+                    // if found cannot be a leaf, because Leaf only appear on _offset == 0
+                    // only Branch and Leaf are inserted, ergo... found is Branch
+                    branch = (Branch)found;
+                    continue;
+                }
+                return null;
             }
         }
 
@@ -418,6 +410,40 @@ namespace Theraot.Collections.ThreadSafe
                 previous = null;
             }
             return false;
+        }
+
+        private void Shrink()
+        {
+            if
+                (
+                    _parent != null
+                    && Interlocked.CompareExchange(ref _parent._buffer[_subindex], this, null) == null
+                    && Interlocked.CompareExchange(ref _useCount, 0, 0) == 0
+                    && Interlocked.CompareExchange(ref _parent._entries[_subindex], null, this) == this // Did --
+                )
+            {
+                if (Interlocked.CompareExchange(ref _useCount, 0, 0) == 0)
+                {
+                    var found = Interlocked.CompareExchange(ref _parent._buffer[_subindex], null, this);
+                    if (found == this)
+                    {
+                        var parent = _parent;
+                        _branchPool.Donate(this);
+                        Interlocked.Decrement(ref parent._useCount); // did not undo --
+                        parent.Shrink();
+                    }
+                }
+                else
+                {
+                    var found = Interlocked.CompareExchange(ref _parent._entries[_subindex], _parent._buffer[_subindex], null);
+                    if (found != null)
+                    {
+                        var parent = _parent;
+                        _branchPool.Donate(this);
+                        Interlocked.Decrement(ref parent._useCount); // did not undo --
+                    }
+                }
+            }
         }
     }
 }
