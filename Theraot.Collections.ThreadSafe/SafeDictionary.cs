@@ -160,6 +160,10 @@ namespace Theraot.Collections.ThreadSafe
         /// <exception cref="System.ArgumentException">An item with the same key has already been added</exception>
         public void AddNew(TKey key, Predicate<TKey> keyOverwriteCheck, TValue value)
         {
+            if (keyOverwriteCheck == null)
+            {
+                throw new ArgumentNullException("keyOverwriteCheck");
+            }
             var hashCode = _keyComparer.GetHashCode(key);
             var neo = new KeyValuePair<TKey, TValue>(key, value);
             var attempts = 0;
@@ -265,6 +269,14 @@ namespace Theraot.Collections.ThreadSafe
         /// </returns>
         public bool ContainsKey(int hashCode, Predicate<TKey> keyCheck, Predicate<TValue> valueCheck)
         {
+            if (keyCheck == null)
+            {
+                throw new ArgumentNullException("keyCheck");
+            }
+            if (valueCheck == null)
+            {
+                throw new ArgumentNullException("valueCheck");
+            }
             for (var attempts = 0; attempts < _probing; attempts++)
             {
                 KeyValuePair<TKey, TValue> found;
@@ -346,6 +358,10 @@ namespace Theraot.Collections.ThreadSafe
 
         public TValue GetOrAdd(TKey key, Predicate<TKey> keyOverwriteCheck, TValue value)
         {
+            if (keyOverwriteCheck == null)
+            {
+                throw new ArgumentNullException("keyOverwriteCheck");
+            }
             var hashCode = _keyComparer.GetHashCode(key);
             var neo = new KeyValuePair<TKey, TValue>(key, value);
             var attempts = 0;
@@ -555,6 +571,10 @@ namespace Theraot.Collections.ThreadSafe
         /// </returns>
         public bool Remove(int hashCode, Predicate<TKey> keyCheck, out TValue value)
         {
+            if (keyCheck == null)
+            {
+                throw new ArgumentNullException("keyCheck");
+            }
             value = default(TValue);
             for (var attempts = 0; attempts < _probing; attempts++)
             {
@@ -596,6 +616,14 @@ namespace Theraot.Collections.ThreadSafe
         /// </returns>
         public bool Remove(int hashCode, Predicate<TKey> keyCheck, Predicate<TValue> valueCheck, out TValue value)
         {
+            if (keyCheck == null)
+            {
+                throw new ArgumentNullException("keyCheck");
+            }
+            if (valueCheck == null)
+            {
+                throw new ArgumentNullException("valueCheck");
+            }
             value = default(TValue);
             for (var attempts = 0; attempts < _probing; attempts++)
             {
@@ -640,6 +668,10 @@ namespace Theraot.Collections.ThreadSafe
         /// </remarks>
         public int RemoveWhereKey(Predicate<TKey> keyCheck)
         {
+            if (keyCheck == null)
+            {
+                throw new ArgumentNullException("keyCheck");
+            }
             var matches = _mapper.Where(pair => keyCheck(pair.Key));
             var count = 0;
             foreach (var pair in matches)
@@ -704,6 +736,10 @@ namespace Theraot.Collections.ThreadSafe
         /// <param name="value">The value.</param>
         public void Set(TKey key, Predicate<TKey> keyOverwriteCheck, TValue value)
         {
+            if (keyOverwriteCheck == null)
+            {
+                throw new ArgumentNullException("keyOverwriteCheck");
+            }
             var hashCode = _keyComparer.GetHashCode(key);
             var neo = new KeyValuePair<TKey, TValue>(key, value);
             var attempts = 0;
@@ -735,6 +771,10 @@ namespace Theraot.Collections.ThreadSafe
         /// </returns>
         public bool TryAdd(TKey key, Predicate<TKey> keyOverwriteCheck, TValue value)
         {
+            if (keyOverwriteCheck == null)
+            {
+                throw new ArgumentNullException("keyOverwriteCheck");
+            }
             var hashCode = _keyComparer.GetHashCode(key);
             var neo = new KeyValuePair<TKey, TValue>(key, value);
             var attempts = 0;
@@ -784,6 +824,10 @@ namespace Theraot.Collections.ThreadSafe
         /// </returns>
         public bool TryAdd(TKey key, Predicate<TKey> keyOverwriteCheck, TValue value, out KeyValuePair<TKey, TValue> stored)
         {
+            if (keyOverwriteCheck == null)
+            {
+                throw new ArgumentNullException("keyOverwriteCheck");
+            }
             var hashCode = _keyComparer.GetHashCode(key);
             var neo = new KeyValuePair<TKey, TValue>(key, value);
             var attempts = 0;
@@ -921,6 +965,10 @@ namespace Theraot.Collections.ThreadSafe
         /// </returns>
         public bool TryGetValue(int hashCode, Predicate<TKey> keyCheck, out TValue value)
         {
+            if (keyCheck == null)
+            {
+                throw new ArgumentNullException("keyCheck");
+            }
             value = default(TValue);
             for (var attempts = 0; attempts < _probing; attempts++)
             {
@@ -949,6 +997,10 @@ namespace Theraot.Collections.ThreadSafe
         /// </remarks>
         public IEnumerable<TValue> Where(Predicate<TKey> keyCheck)
         {
+            if (keyCheck == null)
+            {
+                throw new ArgumentNullException("keyCheck");
+            }
             var matches = _mapper.Where(pair => keyCheck(pair.Key));
             foreach (var pair in matches)
             {

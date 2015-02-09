@@ -152,6 +152,10 @@ namespace Theraot.Collections.ThreadSafe
         /// </returns>
         public bool Contains(int hashCode, Predicate<T> check)
         {
+            if (check == null)
+            {
+                throw new ArgumentNullException("check");
+            }
             for (var attempts = 0; attempts < _probing; attempts++)
             {
                 T found;
@@ -292,6 +296,10 @@ namespace Theraot.Collections.ThreadSafe
         /// </returns>
         public bool Remove(int hashCode, Predicate<T> check, out T value)
         {
+            if (check == null)
+            {
+                throw new ArgumentNullException("check");
+            }
             value = default(T);
             for (var attempts = 0; attempts < _probing; attempts++)
             {
@@ -333,6 +341,10 @@ namespace Theraot.Collections.ThreadSafe
         /// </remarks>
         public int RemoveWhere(Predicate<T> check)
         {
+            if (check == null)
+            {
+                throw new ArgumentNullException("check");
+            }
             var matches = _mapper.Where(check);
             var count = 0;
             foreach (var value in matches)
@@ -357,6 +369,10 @@ namespace Theraot.Collections.ThreadSafe
         /// </remarks>
         public IEnumerable<T> RemoveWhereEnumerable(Predicate<T> check)
         {
+            if (check == null)
+            {
+                throw new ArgumentNullException("check");
+            }
             var matches = _mapper.Where(check);
             foreach (var value in matches)
             {
@@ -405,6 +421,10 @@ namespace Theraot.Collections.ThreadSafe
         /// </returns>
         public bool TryGetValue(int hashCode, Predicate<T> check, out T value)
         {
+            if (check == null)
+            {
+                throw new ArgumentNullException("check");
+            }
             value = default(T);
             for (var attempts = 0; attempts < _probing; attempts++)
             {
@@ -433,6 +453,10 @@ namespace Theraot.Collections.ThreadSafe
         /// </remarks>
         public IEnumerable<T> Where(Predicate<T> check)
         {
+            if (check == null)
+            {
+                throw new ArgumentNullException("check");
+            }
             return _mapper.Where(check);
         }
 
