@@ -14,7 +14,7 @@ namespace Theraot.Collections.ThreadSafe
     /// Consider wrapping this class to implement <see cref="IDictionary{TKey, TValue}" /> or any other desired interface.
     /// </remarks>
     [Serializable]
-    public class SafeDictionary<TKey, TValue> : IDictionary<TKey, TValue>
+    public sealed class SafeDictionary<TKey, TValue> : IDictionary<TKey, TValue>
     {
         // TODO: add GetOrAdd and AddOrUpdate
 
@@ -115,6 +115,15 @@ namespace Theraot.Collections.ThreadSafe
             }
         }
 
+        bool ICollection<KeyValuePair<TKey, TValue>>.IsReadOnly
+        {
+            get
+            {
+                // TODO: Suppres
+                return false;
+            }
+        }
+
         public IEqualityComparer<TKey> KeyComparer
         {
             get
@@ -141,14 +150,6 @@ namespace Theraot.Collections.ThreadSafe
             }
         }
 
-        bool ICollection<KeyValuePair<TKey, TValue>>.IsReadOnly
-        {
-            get
-            {
-                return false;
-            }
-        }
-
         public TValue this[TKey key]
         {
             get
@@ -166,6 +167,11 @@ namespace Theraot.Collections.ThreadSafe
             }
         }
 
+        public void Add(KeyValuePair<TKey, TValue> item)
+        {
+            AddNew(item.Key, item.Value);
+        }
+
         /// <summary>
         /// Adds the specified key and associated value.
         /// </summary>
@@ -176,7 +182,8 @@ namespace Theraot.Collections.ThreadSafe
         {
             var neo = new KeyValuePair<TKey, TValue>(key, value);
             var hashcode = _keyComparer.GetHashCode(key);
-            for (var attempts = 0; ; attempts++)
+            var attempts = 0;
+            while (true)
             {
                 ExtendProbingIfNeeded(attempts);
                 KeyValuePair<TKey, TValue> found;
@@ -188,6 +195,7 @@ namespace Theraot.Collections.ThreadSafe
                 {
                     throw new ArgumentException("the key is already present");
                 }
+                attempts++;
             }
         }
 
@@ -239,6 +247,7 @@ namespace Theraot.Collections.ThreadSafe
         /// <returns>
         ///   <c>true</c> if the specified key is contained; otherwise, <c>false</c>.
         /// </returns>
+        [global::System.Diagnostics.CodeAnalysis.SuppressMessage("StyleCop.CSharp.DocumentationRules", "SA1650:ElementDocumentationMustBeSpelledCorrectly", Justification = "hashcode")]
         public bool ContainsKey(int hashcode, Predicate<TKey> keyCheck)
         {
             for (var attempts = 0; attempts < _probing; attempts++)
@@ -292,6 +301,63 @@ namespace Theraot.Collections.ThreadSafe
             return result;
         }
 
+        bool ICollection<KeyValuePair<TKey, TValue>>.Contains(KeyValuePair<TKey, TValue> item)
+        {
+            int hashcode = _keyComparer.GetHashCode(item.Key);
+            for (var attempts = 0; attempts < _probing; attempts++)
+            {
+                KeyValuePair<TKey, TValue> found;
+                if (_mapper.TryGet(hashcode + attempts, out found))
+                {
+                    if (_keyComparer.Equals(found.Key, item.Key))
+                    {
+                        if (EqualityComparer<TValue>.Default.Equals(found.Value, item.Value))
+                        {
+                            return true;
+                        }
+                        return false;
+                    }
+                }
+            }
+            return false;
+        }
+
+        bool ICollection<KeyValuePair<TKey, TValue>>.Remove(KeyValuePair<TKey, TValue> item)
+        {
+            int hashcode = _keyComparer.GetHashCode(item.Key);
+            for (var attempts = 0; attempts < _probing; attempts++)
+            {
+                KeyValuePair<TKey, TValue> found;
+                if (_mapper.TryGet(hashcode + attempts, out found))
+                {
+                    if (_keyComparer.Equals(found.Key, item.Key))
+                    {
+                        // Since this class will never relocate a key, we can just remove at this position
+                        if (EqualityComparer<TValue>.Default.Equals(found.Value, item.Value))
+                        {
+                            if (_mapper.RemoveAt(hashcode + attempts, out found))
+                            {
+                                return true;
+                            }
+                        }
+                        // Another thread removed first - or the value did not match
+                        return false;
+                    }
+                }
+            }
+            return false;
+        }
+
+        void IDictionary<TKey, TValue>.Add(TKey key, TValue value)
+        {
+            AddNew(key, value);
+        }
+
+        IEnumerator IEnumerable.GetEnumerator()
+        {
+            return GetEnumerator();
+        }
+
         /// <summary>
         /// Removes the specified key.
         /// </summary>
@@ -301,7 +367,6 @@ namespace Theraot.Collections.ThreadSafe
         /// </returns>
         public bool Remove(TKey key)
         {
-            // TODO: TryGet -> Check -> RemoveAt combo
             var hashcode = _keyComparer.GetHashCode(key);
             for (var attempts = 0; attempts < _probing; attempts++)
             {
@@ -333,7 +398,6 @@ namespace Theraot.Collections.ThreadSafe
         /// </returns>
         public bool Remove(TKey key, out TValue value)
         {
-            // TODO: TryGet -> Check -> RemoveAt combo
             value = default(TValue);
             var hashcode = _keyComparer.GetHashCode(key);
             for (var attempts = 0; attempts < _probing; attempts++)
@@ -366,9 +430,9 @@ namespace Theraot.Collections.ThreadSafe
         /// <returns>
         ///   <c>true</c> if the specified key was removed; otherwise, <c>false</c>.
         /// </returns>
+        [global::System.Diagnostics.CodeAnalysis.SuppressMessage("StyleCop.CSharp.DocumentationRules", "SA1650:ElementDocumentationMustBeSpelledCorrectly", Justification = "hashcode")]
         public bool Remove(int hashcode, Predicate<TKey> keyCheck, out TValue value)
         {
-            // TODO: TryGet -> Check -> RemoveAt combo
             value = default(TValue);
             for (var attempts = 0; attempts < _probing; attempts++)
             {
@@ -444,10 +508,10 @@ namespace Theraot.Collections.ThreadSafe
         /// <param name="value">The value.</param>
         public void Set(TKey key, TValue value)
         {
-            // TODO: TryGet -> Check -> Set combo
             var hashcode = _keyComparer.GetHashCode(key);
             var neo = new KeyValuePair<TKey, TValue>(key, value);
-            for (var attempts = 0; ; attempts++)
+            var attempts = 0;
+            while (true)
             {
                 ExtendProbingIfNeeded(attempts);
                 KeyValuePair<TKey, TValue> found;
@@ -471,6 +535,7 @@ namespace Theraot.Collections.ThreadSafe
                         return;
                     }
                 }
+                attempts++;
             }
         }
 
@@ -486,7 +551,8 @@ namespace Theraot.Collections.ThreadSafe
         {
             var hashcode = _keyComparer.GetHashCode(key);
             var neo = new KeyValuePair<TKey, TValue>(key, value);
-            for (var attempts = 0; ; attempts++)
+            var attempts = 0;
+            while (true)
             {
                 ExtendProbingIfNeeded(attempts);
                 KeyValuePair<TKey, TValue> found;
@@ -498,6 +564,7 @@ namespace Theraot.Collections.ThreadSafe
                 {
                     return false;
                 }
+                attempts++;
             }
         }
 
@@ -514,7 +581,8 @@ namespace Theraot.Collections.ThreadSafe
         {
             var hashcode = _keyComparer.GetHashCode(key);
             var neo = new KeyValuePair<TKey, TValue>(key, value);
-            for (var attempts = 0; ; attempts++)
+            var attempts = 0;
+            while (true)
             {
                 ExtendProbingIfNeeded(attempts);
                 if (_mapper.Insert(hashcode + attempts, neo, out stored))
@@ -526,6 +594,7 @@ namespace Theraot.Collections.ThreadSafe
                 {
                     return false;
                 }
+                attempts++;
             }
         }
 
@@ -565,6 +634,7 @@ namespace Theraot.Collections.ThreadSafe
         /// <returns>
         ///   <c>true</c> if the value was retrieved; otherwise, <c>false</c>.
         /// </returns>
+        [global::System.Diagnostics.CodeAnalysis.SuppressMessage("StyleCop.CSharp.DocumentationRules", "SA1650:ElementDocumentationMustBeSpelledCorrectly", Justification = "hashcode")]
         public bool TryGetValue(int hashcode, Predicate<TKey> keyCheck, out TValue value)
         {
             value = default(TValue);
@@ -602,36 +672,6 @@ namespace Theraot.Collections.ThreadSafe
             }
         }
 
-        void ICollection<KeyValuePair<TKey, TValue>>.Add(KeyValuePair<TKey, TValue> item)
-        {
-            AddNew(item.Key, item.Value);
-        }
-
-        void IDictionary<TKey, TValue>.Add(TKey key, TValue value)
-        {
-            AddNew(key, value);
-        }
-
-        bool ICollection<KeyValuePair<TKey, TValue>>.Contains(KeyValuePair<TKey, TValue> item)
-        {
-            int hashcode = _keyComparer.GetHashCode(item.Key);
-            for (var attempts = 0; attempts < _probing; attempts++)
-            {
-                KeyValuePair<TKey, TValue> found;
-                if (_mapper.TryGet(hashcode + attempts, out found))
-                {
-                    if (_keyComparer.Equals(found.Key, item.Key))
-                    {
-                        if (EqualityComparer<TValue>.Default.Equals(found.Value, item.Value))
-                        {
-                            return true;
-                        }
-                        return false;
-                    }
-                }
-            }
-            return false;
-        }
         private void ExtendProbingIfNeeded(int attempts)
         {
             var diff = attempts - _probing;
@@ -639,38 +679,6 @@ namespace Theraot.Collections.ThreadSafe
             {
                 Interlocked.Add(ref _probing, diff);
             }
-        }
-
-        IEnumerator IEnumerable.GetEnumerator()
-        {
-            return GetEnumerator();
-        }
-
-        bool ICollection<KeyValuePair<TKey, TValue>>.Remove(KeyValuePair<TKey, TValue> item)
-        {
-            // TODO: TryGet -> Check -> RemoveAt combo
-            int hashcode = _keyComparer.GetHashCode(item.Key);
-            for (var attempts = 0; attempts < _probing; attempts++)
-            {
-                KeyValuePair<TKey, TValue> found;
-                if (_mapper.TryGet(hashcode + attempts, out found))
-                {
-                    if (_keyComparer.Equals(found.Key, item.Key))
-                    {
-                        // Since this class will never relocate a key, we can just remove at this position
-                        if (EqualityComparer<TValue>.Default.Equals(found.Value, item.Value))
-                        {
-                            if (_mapper.RemoveAt(hashcode + attempts, out found))
-                            {
-                                return true;
-                            }
-                        }
-                        // Another thread removed first - or the value did not match
-                        return false;
-                    }
-                }
-            }
-            return false;
         }
     }
 }

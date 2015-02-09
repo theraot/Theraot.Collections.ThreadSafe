@@ -19,7 +19,7 @@ namespace Theraot.Collections.ThreadSafe
         {
             if (_guard == null)
             {
-                _guard = new List<int>{id};
+                _guard = new List<int> { id };
                 return true;
             }
             if (!_guard.Contains(id))

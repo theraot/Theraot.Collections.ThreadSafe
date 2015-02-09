@@ -224,7 +224,7 @@ namespace Theraot.Collections.ThreadSafe
             }
             foreach (var value in _root.Where(value => predicate((T)value)))
             {
-                yield return (T) value;
+                yield return (T)value;
             }
         }
 
