@@ -134,7 +134,7 @@ namespace Theraot.Collections.ThreadSafe
         /// </summary>
         /// <param name="key">The key.</param>
         /// <param name="value">The value.</param>
-        /// <exception cref="System.ArgumentException">the key is already present</exception>
+        /// <exception cref="System.ArgumentException">An item with the same key has already been added</exception>
         public void AddNew(TKey key, TValue value)
         {
             var neo = new KeyValuePair<TKey, TValue>(key, value);
@@ -150,7 +150,7 @@ namespace Theraot.Collections.ThreadSafe
                 }
                 if (_keyComparer.Equals(found.Key, key))
                 {
-                    throw new ArgumentException("the key is already present");
+                    throw new ArgumentException("An item with the same key has already been added");
                 }
                 attempts++;
             }
@@ -243,6 +243,47 @@ namespace Theraot.Collections.ThreadSafe
         public IEnumerator<KeyValuePair<TKey, TValue>> GetEnumerator()
         {
             return _mapper.GetEnumerator();
+        }
+
+        public TValue GetOrAdd(TKey key, TValue value)
+        {
+            var hashcode = _keyComparer.GetHashCode(key);
+            var neo = new KeyValuePair<TKey, TValue>(key, value);
+            var attempts = 0;
+            while (true)
+            {
+                ExtendProbingIfNeeded(attempts);
+                Predicate<object> check = found =>
+                {
+                    var _found = (KeyValuePair<TKey, TValue>)found;
+                    if (_keyComparer.Equals(_found.Key, key))
+                    {
+                        // This is the item that has been stored with the key
+                        value = _found.Value;
+                        // Throw to abort overwrite
+                        throw new ArgumentException("An item with the same key has already been added");
+                    }
+                    // This is not the key, keep looking
+                    return false;
+                };
+                try
+                {
+                    bool isNew;
+                    // TryGetCheckSet will add if no item is found, otherwise it calls check
+                    if (_mapper.TryGetCheckSet(hashcode + attempts, neo, check, out isNew))
+                    {
+                        // It added a new item
+                        return value;
+                    }
+                }
+                catch (ArgumentException)
+                {
+                    // An item with the same key has already been added
+                    // Return it
+                    return value;
+                }
+                attempts++;
+            }
         }
 
         /// <summary>
