@@ -144,6 +144,31 @@ namespace Theraot.Collections.ThreadSafe
         }
 
         /// <summary>
+        /// Determines whether the specified value is contained.
+        /// </summary>
+        /// <param name="hashcode">The hashcode to look for.</param>
+        /// <param name="check">The value predicate.</param>
+        /// <returns>
+        ///   <c>true</c> if the specified value is contained; otherwise, <c>false</c>.
+        /// </returns>
+        [global::System.Diagnostics.CodeAnalysis.SuppressMessage("StyleCop.CSharp.DocumentationRules", "SA1650:ElementDocumentationMustBeSpelledCorrectly", Justification = "hashcode")]
+        public bool Contains(int hashcode, Predicate<T> check)
+        {
+            for (var attempts = 0; attempts < _probing; attempts++)
+            {
+                T found;
+                if (_mapper.TryGet(hashcode + attempts, out found))
+                {
+                    if (check(found))
+                    {
+                        return true;
+                    }
+                }
+            }
+            return false;
+        }
+
+        /// <summary>
         /// Copies the items to a compatible one-dimensional array, starting at the specified index of the target array.
         /// </summary>
         /// <param name="array">The array.</param>
@@ -259,6 +284,47 @@ namespace Theraot.Collections.ThreadSafe
         }
 
         /// <summary>
+        /// Removes a value by hashcode and a value predicate.
+        /// </summary>
+        /// <param name="hashcode">The hashcode to look for.</param>
+        /// <param name="check">The value predicate.</param>
+        /// <param name="value">The value.</param>
+        /// <returns>
+        ///   <c>true</c> if the specified value was removed; otherwise, <c>false</c>.
+        /// </returns>
+        [global::System.Diagnostics.CodeAnalysis.SuppressMessage("StyleCop.CSharp.DocumentationRules", "SA1650:ElementDocumentationMustBeSpelledCorrectly", Justification = "hashcode")]
+        public bool Remove(int hashcode, Predicate<T> check, out T value)
+        {
+            value = default(T);
+            for (var attempts = 0; attempts < _probing; attempts++)
+            {
+                var done = false;
+                T previous;
+                var result = _mapper.TryGetCheckRemoveAt
+                    (
+                        hashcode + attempts,
+                        found =>
+                        {
+                            var _found = (T)found;
+                            if (check(_found))
+                            {
+                                done = true;
+                                return true;
+                            }
+                            return false;
+                        },
+                        out previous
+                    );
+                if (done)
+                {
+                    value = previous;
+                    return result;
+                }
+            }
+            return false;
+        }
+
+        /// <summary>
         /// Removes the values where the predicate is satisfied.
         /// </summary>
         /// <param name="check">The predicate.</param>
@@ -329,6 +395,34 @@ namespace Theraot.Collections.ThreadSafe
                 }
                 attempts++;
             }
+        }
+
+        /// <summary>
+        /// Tries to retrieve the value by hashcode and value predicate.
+        /// </summary>
+        /// <param name="hashcode">The hashcode to look for.</param>
+        /// <param name="check">The value predicate.</param>
+        /// <param name="value">The value.</param>
+        /// <returns>
+        ///   <c>true</c> if the value was retrieved; otherwise, <c>false</c>.
+        /// </returns>
+        [global::System.Diagnostics.CodeAnalysis.SuppressMessage("StyleCop.CSharp.DocumentationRules", "SA1650:ElementDocumentationMustBeSpelledCorrectly", Justification = "hashcode")]
+        public bool TryGetValue(int hashcode, Predicate<T> check, out T value)
+        {
+            value = default(T);
+            for (var attempts = 0; attempts < _probing; attempts++)
+            {
+                T found;
+                if (_mapper.TryGet(hashcode + attempts, out found))
+                {
+                    if (check(found))
+                    {
+                        value = found;
+                        return true;
+                    }
+                }
+            }
+            return false;
         }
 
         /// <summary>
