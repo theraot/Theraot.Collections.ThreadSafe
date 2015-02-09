@@ -49,7 +49,6 @@ namespace Theraot.Collections.ThreadSafe
             // Empty
         }
 
-
         /// <summary>
         /// Initializes a new instance of the <see cref="SafeSet{T}" /> class.
         /// </summary>
@@ -85,13 +84,13 @@ namespace Theraot.Collections.ThreadSafe
         /// <exception cref="System.ArgumentException">the value is already present</exception>
         public void AddNew(T value)
         {
-            var hashcode = _comparer.GetHashCode(value);
+            var hashCode = _comparer.GetHashCode(value);
             var attempts = 0;
             while (true)
             {
                 ExtendProbingIfNeeded(attempts);
                 T found;
-                if (_mapper.Insert(hashcode + attempts, value, out found))
+                if (_mapper.Insert(hashCode + attempts, value, out found))
                 {
                     return;
                 }
@@ -128,11 +127,11 @@ namespace Theraot.Collections.ThreadSafe
         /// </returns>
         public bool Contains(T value)
         {
-            var hashcode = _comparer.GetHashCode(value);
+            var hashCode = _comparer.GetHashCode(value);
             for (var attempts = 0; attempts < _probing; attempts++)
             {
                 T found;
-                if (_mapper.TryGet(hashcode + attempts, out found))
+                if (_mapper.TryGet(hashCode + attempts, out found))
                 {
                     if (_comparer.Equals(found, value))
                     {
@@ -146,20 +145,19 @@ namespace Theraot.Collections.ThreadSafe
         /// <summary>
         /// Determines whether the specified value is contained.
         /// </summary>
-        /// <param name="hashcode">The hashcode to look for.</param>
+        /// <param name="hashCode">The hash code to look for.</param>
         /// <param name="check">The value predicate.</param>
         /// <returns>
         ///   <c>true</c> if the specified value is contained; otherwise, <c>false</c>.
         /// </returns>
-        [global::System.Diagnostics.CodeAnalysis.SuppressMessage("StyleCop.CSharp.DocumentationRules", "SA1650:ElementDocumentationMustBeSpelledCorrectly", Justification = "hashcode")]
-        public bool Contains(int hashcode, Predicate<T> check)
+        public bool Contains(int hashCode, Predicate<T> check)
         {
             for (var attempts = 0; attempts < _probing; attempts++)
             {
                 T found;
-                if (_mapper.TryGet(hashcode + attempts, out found))
+                if (_mapper.TryGet(hashCode + attempts, out found))
                 {
-                    if (_comparer.GetHashCode(found) == hashcode && check(found))
+                    if (_comparer.GetHashCode(found) == hashCode && check(found))
                     {
                         return true;
                     }
@@ -219,14 +217,14 @@ namespace Theraot.Collections.ThreadSafe
         /// </returns>
         public bool Remove(T value)
         {
-            var hashcode = _comparer.GetHashCode(value);
+            var hashCode = _comparer.GetHashCode(value);
             for (var attempts = 0; attempts < _probing; attempts++)
             {
                 var done = false;
                 T previous;
                 var result = _mapper.TryGetCheckRemoveAt
                     (
-                        hashcode + attempts,
+                        hashCode + attempts,
                         found =>
                         {
                             if (_comparer.Equals((T)found, value))
@@ -256,13 +254,13 @@ namespace Theraot.Collections.ThreadSafe
         /// </returns>
         public bool Remove(T value, out T previous)
         {
-            var hashcode = _comparer.GetHashCode(value);
+            var hashCode = _comparer.GetHashCode(value);
             for (var attempts = 0; attempts < _probing; attempts++)
             {
                 var done = false;
                 var result = _mapper.TryGetCheckRemoveAt
                     (
-                        hashcode + attempts,
+                        hashCode + attempts,
                         found =>
                         {
                             if (_comparer.Equals((T)found, value))
@@ -284,16 +282,15 @@ namespace Theraot.Collections.ThreadSafe
         }
 
         /// <summary>
-        /// Removes a value by hashcode and a value predicate.
+        /// Removes a value by hash code and a value predicate.
         /// </summary>
-        /// <param name="hashcode">The hashcode to look for.</param>
+        /// <param name="hashCode">The hash code to look for.</param>
         /// <param name="check">The value predicate.</param>
         /// <param name="value">The value.</param>
         /// <returns>
         ///   <c>true</c> if the specified value was removed; otherwise, <c>false</c>.
         /// </returns>
-        [global::System.Diagnostics.CodeAnalysis.SuppressMessage("StyleCop.CSharp.DocumentationRules", "SA1650:ElementDocumentationMustBeSpelledCorrectly", Justification = "hashcode")]
-        public bool Remove(int hashcode, Predicate<T> check, out T value)
+        public bool Remove(int hashCode, Predicate<T> check, out T value)
         {
             value = default(T);
             for (var attempts = 0; attempts < _probing; attempts++)
@@ -302,11 +299,11 @@ namespace Theraot.Collections.ThreadSafe
                 T previous;
                 var result = _mapper.TryGetCheckRemoveAt
                     (
-                        hashcode + attempts,
+                        hashCode + attempts,
                         found =>
                         {
                             var _found = (T)found;
-                            if (_comparer.GetHashCode(_found) == hashcode && check(_found))
+                            if (_comparer.GetHashCode(_found) == hashCode && check(_found))
                             {
                                 done = true;
                                 return true;
@@ -379,13 +376,13 @@ namespace Theraot.Collections.ThreadSafe
         /// </returns>
         public bool TryAdd(T value)
         {
-            var hashcode = _comparer.GetHashCode(value);
+            var hashCode = _comparer.GetHashCode(value);
             var attempts = 0;
             while (true)
             {
                 ExtendProbingIfNeeded(attempts);
                 T found;
-                if (_mapper.Insert(hashcode + attempts, value, out found))
+                if (_mapper.Insert(hashCode + attempts, value, out found))
                 {
                     return true;
                 }
@@ -398,24 +395,23 @@ namespace Theraot.Collections.ThreadSafe
         }
 
         /// <summary>
-        /// Tries to retrieve the value by hashcode and value predicate.
+        /// Tries to retrieve the value by hash code and value predicate.
         /// </summary>
-        /// <param name="hashcode">The hashcode to look for.</param>
+        /// <param name="hashCode">The hash code to look for.</param>
         /// <param name="check">The value predicate.</param>
         /// <param name="value">The value.</param>
         /// <returns>
         ///   <c>true</c> if the value was retrieved; otherwise, <c>false</c>.
         /// </returns>
-        [global::System.Diagnostics.CodeAnalysis.SuppressMessage("StyleCop.CSharp.DocumentationRules", "SA1650:ElementDocumentationMustBeSpelledCorrectly", Justification = "hashcode")]
-        public bool TryGetValue(int hashcode, Predicate<T> check, out T value)
+        public bool TryGetValue(int hashCode, Predicate<T> check, out T value)
         {
             value = default(T);
             for (var attempts = 0; attempts < _probing; attempts++)
             {
                 T found;
-                if (_mapper.TryGet(hashcode + attempts, out found))
+                if (_mapper.TryGet(hashCode + attempts, out found))
                 {
-                    if (_comparer.GetHashCode(found) == hashcode && check(found))
+                    if (_comparer.GetHashCode(found) == hashCode && check(found))
                     {
                         value = found;
                         return true;
