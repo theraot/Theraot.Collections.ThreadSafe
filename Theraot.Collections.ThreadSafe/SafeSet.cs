@@ -14,7 +14,6 @@ namespace Theraot.Collections.ThreadSafe
     {
         // TODO: Implement ISet<T>
 
-        private const int INT_DefaultCapacity = 64;
         private const int INT_DefaultProbing = 1;
 
         private readonly IEqualityComparer<T> _comparer;
@@ -25,7 +24,7 @@ namespace Theraot.Collections.ThreadSafe
         /// Initializes a new instance of the <see cref="SafeSet{T}" /> class.
         /// </summary>
         public SafeSet()
-            : this(INT_DefaultCapacity, EqualityComparer<T>.Default, INT_DefaultProbing)
+            : this(EqualityComparer<T>.Default, INT_DefaultProbing)
         {
             // Empty
         }
@@ -33,21 +32,9 @@ namespace Theraot.Collections.ThreadSafe
         /// <summary>
         /// Initializes a new instance of the <see cref="SafeSet{T}" /> class.
         /// </summary>
-        /// <param name="capacity">The initial capacity.</param>
-        public SafeSet(int capacity)
-            : this(capacity, EqualityComparer<T>.Default, INT_DefaultProbing)
-        {
-            // Empty
-        }
-
-        /// <summary>
-        /// Initializes a new instance of the <see cref="SafeSet{T}" /> class.
-        /// </summary>
-        /// <param name="capacity">The initial capacity.</param>
         /// <param name="initialProbing">The number of steps in linear probing.</param>
-        /// <exception cref="System.ArgumentOutOfRangeException">initialProbing;initialProbing must be nonnegative and less than capacity.</exception>
-        public SafeSet(int capacity, int initialProbing)
-            : this(capacity, EqualityComparer<T>.Default, initialProbing)
+        public SafeSet(int initialProbing)
+            : this(EqualityComparer<T>.Default, initialProbing)
         {
             // Empty
         }
@@ -57,47 +44,19 @@ namespace Theraot.Collections.ThreadSafe
         /// </summary>
         /// <param name="comparer">The value comparer.</param>
         public SafeSet(IEqualityComparer<T> comparer)
-            : this(INT_DefaultCapacity, comparer, INT_DefaultProbing)
+            : this(comparer, INT_DefaultProbing)
         {
             // Empty
         }
 
-        /// <summary>
-        /// Initializes a new instance of the <see cref="SafeSet{T}" /> class.
-        /// </summary>
-        /// <param name="comparer">The value comparer.</param>
-        /// <param name="initialProbing">The maximum number of steps in linear probing.</param>
-        /// <exception cref="System.ArgumentOutOfRangeException">initialProbing;initialProbing must be nonnegative and less than capacity.</exception>
-        public SafeSet(IEqualityComparer<T> comparer, int initialProbing)
-            : this(INT_DefaultCapacity, comparer, initialProbing)
-        {
-            // Empty
-        }
 
         /// <summary>
         /// Initializes a new instance of the <see cref="SafeSet{T}" /> class.
         /// </summary>
-        /// <param name="capacity">The initial capacity.</param>
-        /// <param name="comparer">The value comparer.</param>
-        public SafeSet(int capacity, IEqualityComparer<T> comparer)
-            : this(capacity, comparer, INT_DefaultProbing)
-        {
-            // Empty
-        }
-
-        /// <summary>
-        /// Initializes a new instance of the <see cref="SafeSet{T}" /> class.
-        /// </summary>
-        /// <param name="capacity">The initial capacity.</param>
         /// <param name="comparer">The value comparer.</param>
         /// <param name="initialProbing">The number of steps in linear probing.</param>
-        /// <exception cref="System.ArgumentOutOfRangeException">initialProbing;initialProbing must be nonnegative and less than capacity.</exception>
-        public SafeSet(int capacity, IEqualityComparer<T> comparer, int initialProbing)
+        public SafeSet(IEqualityComparer<T> comparer, int initialProbing)
         {
-            if (initialProbing < 0 || initialProbing >= capacity)
-            {
-                throw new ArgumentOutOfRangeException("initialProbing", "initialProbing must be nonnegative and less than capacity.");
-            }
             _comparer = comparer ?? EqualityComparer<T>.Default;
             _mapper = new Mapper<T>();
             _probing = initialProbing;

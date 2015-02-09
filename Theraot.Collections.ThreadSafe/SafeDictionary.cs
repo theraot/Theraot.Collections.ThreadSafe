@@ -18,7 +18,6 @@ namespace Theraot.Collections.ThreadSafe
     {
         // TODO: add GetOrAdd and AddOrUpdate
 
-        private const int INT_DefaultCapacity = 64;
         private const int INT_DefaultProbing = 1;
 
         private readonly IEqualityComparer<TKey> _keyComparer;
@@ -29,7 +28,7 @@ namespace Theraot.Collections.ThreadSafe
         /// Initializes a new instance of the <see cref="SafeDictionary{TKey,TValue}" /> class.
         /// </summary>
         public SafeDictionary()
-            : this(INT_DefaultCapacity, EqualityComparer<TKey>.Default, INT_DefaultProbing)
+            : this(EqualityComparer<TKey>.Default, INT_DefaultProbing)
         {
             // Empty
         }
@@ -37,21 +36,9 @@ namespace Theraot.Collections.ThreadSafe
         /// <summary>
         /// Initializes a new instance of the <see cref="SafeDictionary{TKey,TValue}" /> class.
         /// </summary>
-        /// <param name="capacity">The initial capacity.</param>
-        public SafeDictionary(int capacity)
-            : this(capacity, EqualityComparer<TKey>.Default, INT_DefaultProbing)
-        {
-            // Empty
-        }
-
-        /// <summary>
-        /// Initializes a new instance of the <see cref="SafeDictionary{TKey,TValue}" /> class.
-        /// </summary>
-        /// <param name="capacity">The initial capacity.</param>
         /// <param name="initialProbing">The number of steps in linear probing.</param>
-        /// <exception cref="System.ArgumentOutOfRangeException">initialProbing;initialProbing must be nonnegative and less than capacity.</exception>
-        public SafeDictionary(int capacity, int initialProbing)
-            : this(capacity, EqualityComparer<TKey>.Default, initialProbing)
+        public SafeDictionary(int initialProbing)
+            : this(EqualityComparer<TKey>.Default, initialProbing)
         {
             // Empty
         }
@@ -61,7 +48,7 @@ namespace Theraot.Collections.ThreadSafe
         /// </summary>
         /// <param name="comparer">The key comparer.</param>
         public SafeDictionary(IEqualityComparer<TKey> comparer)
-            : this(INT_DefaultCapacity, comparer, INT_DefaultProbing)
+            : this(comparer, INT_DefaultProbing)
         {
             // Empty
         }
@@ -69,39 +56,10 @@ namespace Theraot.Collections.ThreadSafe
         /// <summary>
         /// Initializes a new instance of the <see cref="SafeDictionary{TKey,TValue}" /> class.
         /// </summary>
-        /// <param name="comparer">The key comparer.</param>
-        /// <param name="initialProbing">The maximum number of steps in linear probing.</param>
-        /// <exception cref="System.ArgumentOutOfRangeException">initialProbing;initialProbing must be nonnegative and less than capacity.</exception>
-        public SafeDictionary(IEqualityComparer<TKey> comparer, int initialProbing)
-            : this(INT_DefaultCapacity, comparer, initialProbing)
-        {
-            // Empty
-        }
-
-        /// <summary>
-        /// Initializes a new instance of the <see cref="SafeDictionary{TKey,TValue}" /> class.
-        /// </summary>
-        /// <param name="capacity">The initial capacity.</param>
-        /// <param name="comparer">The key comparer.</param>
-        public SafeDictionary(int capacity, IEqualityComparer<TKey> comparer)
-            : this(capacity, comparer, INT_DefaultProbing)
-        {
-            // Empty
-        }
-
-        /// <summary>
-        /// Initializes a new instance of the <see cref="SafeDictionary{TKey,TValue}" /> class.
-        /// </summary>
-        /// <param name="capacity">The initial capacity.</param>
         /// <param name="comparer">The key comparer.</param>
         /// <param name="initialProbing">The number of steps in linear probing.</param>
-        /// <exception cref="System.ArgumentOutOfRangeException">initialProbing;initialProbing must be nonnegative and less than capacity.</exception>
-        public SafeDictionary(int capacity, IEqualityComparer<TKey> comparer, int initialProbing)
+        public SafeDictionary(IEqualityComparer<TKey> comparer, int initialProbing)
         {
-            if (initialProbing < 0 || initialProbing >= capacity)
-            {
-                throw new ArgumentOutOfRangeException("initialProbing", "initialProbing must be nonnegative and less than capacity.");
-            }
             _keyComparer = comparer ?? EqualityComparer<TKey>.Default;
             _mapper = new Mapper<KeyValuePair<TKey, TValue>>();
             _probing = initialProbing;
