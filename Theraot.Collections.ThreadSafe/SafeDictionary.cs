@@ -212,7 +212,7 @@ namespace Theraot.Collections.ThreadSafe
                 KeyValuePair<TKey, TValue> found;
                 if (_mapper.TryGet(hashcode + attempts, out found))
                 {
-                    if (keyCheck(found.Key))
+                    if (_keyComparer.GetHashCode(found.Key) == hashcode && keyCheck(found.Key))
                     {
                         return true;
                     }
@@ -422,7 +422,7 @@ namespace Theraot.Collections.ThreadSafe
                         found =>
                         {
                             var _found = (KeyValuePair<TKey, TValue>)found;
-                            if (keyCheck(_found.Key))
+                            if (_keyComparer.GetHashCode(_found.Key) == hashcode && keyCheck(_found.Key))
                             {
                                 done = true;
                                 return true;
@@ -464,7 +464,7 @@ namespace Theraot.Collections.ThreadSafe
                         found =>
                         {
                             var _found = (KeyValuePair<TKey, TValue>)found;
-                            if (keyCheck(_found.Key))
+                            if (_keyComparer.GetHashCode(_found.Key) == hashcode && keyCheck(_found.Key))
                             {
                                 done = true;
                                 if (valueCheck(_found.Value))
@@ -569,7 +569,12 @@ namespace Theraot.Collections.ThreadSafe
             {
                 ExtendProbingIfNeeded(attempts);
                 bool isNew;
-                if (_mapper.TryGetCheckSet(hashcode + attempts, neo, found => keyCheck(((KeyValuePair<TKey, TValue>)found).Key), out isNew))
+                Predicate<object> check = found =>
+                {
+                    var _found = (KeyValuePair<TKey, TValue>)found;
+                    return _keyComparer.GetHashCode(_found.Key) == hashcode && keyCheck(_found.Key);
+                };
+                if (_mapper.TryGetCheckSet(hashcode + attempts, neo, check, out isNew))
                 {
                     return;
                 }
@@ -681,7 +686,7 @@ namespace Theraot.Collections.ThreadSafe
                 KeyValuePair<TKey, TValue> found;
                 if (_mapper.TryGet(hashcode + attempts, out found))
                 {
-                    if (keyCheck(found.Key))
+                    if (_keyComparer.GetHashCode(found.Key) == hashcode && keyCheck(found.Key))
                     {
                         value = found.Value;
                         return true;

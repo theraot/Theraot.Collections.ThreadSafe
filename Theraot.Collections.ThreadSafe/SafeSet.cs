@@ -159,7 +159,7 @@ namespace Theraot.Collections.ThreadSafe
                 T found;
                 if (_mapper.TryGet(hashcode + attempts, out found))
                 {
-                    if (check(found))
+                    if (_comparer.GetHashCode(found) == hashcode && check(found))
                     {
                         return true;
                     }
@@ -306,7 +306,7 @@ namespace Theraot.Collections.ThreadSafe
                         found =>
                         {
                             var _found = (T)found;
-                            if (check(_found))
+                            if (_comparer.GetHashCode(_found) == hashcode && check(_found))
                             {
                                 done = true;
                                 return true;
@@ -415,7 +415,7 @@ namespace Theraot.Collections.ThreadSafe
                 T found;
                 if (_mapper.TryGet(hashcode + attempts, out found))
                 {
-                    if (check(found))
+                    if (_comparer.GetHashCode(found) == hashcode && check(found))
                     {
                         value = found;
                         return true;
