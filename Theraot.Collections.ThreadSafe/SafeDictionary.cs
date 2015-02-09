@@ -119,7 +119,6 @@ namespace Theraot.Collections.ThreadSafe
         {
             get
             {
-                // TODO: Suppres
                 return false;
             }
         }
