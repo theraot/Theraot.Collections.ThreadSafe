@@ -238,19 +238,25 @@ namespace Theraot.Collections.ThreadSafe
             var hashcode = _comparer.GetHashCode(value);
             for (var attempts = 0; attempts < _probing; attempts++)
             {
-                T found;
-                if (_mapper.TryGet(hashcode + attempts, out found))
-                {
-                    if (_comparer.Equals(found, value))
-                    {
-                        // Since this class will never relocate a value, we can just remove at this position
-                        if (_mapper.RemoveAt(hashcode + attempts))
+                var done = false;
+                T previous;
+                var result = _mapper.TryGetCheckRemoveAt
+                    (
+                        hashcode + attempts,
+                        found =>
                         {
-                            return true;
-                        }
-                        // Another thread removed first
-                        return false;
-                    }
+                            if (_comparer.Equals((T)found, value))
+                            {
+                                done = true;
+                                return true;
+                            }
+                            return false;
+                        },
+                        out previous
+                    );
+                if (done)
+                {
+                    return result;
                 }
             }
             return false;
@@ -260,30 +266,36 @@ namespace Theraot.Collections.ThreadSafe
         /// Removes the specified value.
         /// </summary>
         /// <param name="value">The value.</param>
-        /// <param name="found">The found value that was removed.</param>
+        /// <param name="previous">The found value that was removed.</param>
         /// <returns>
         ///   <c>true</c> if the specified value was removed; otherwise, <c>false</c>.
         /// </returns>
-        public bool Remove(T value, out T found)
+        public bool Remove(T value, out T previous)
         {
             var hashcode = _comparer.GetHashCode(value);
             for (var attempts = 0; attempts < _probing; attempts++)
             {
-                if (_mapper.TryGet(hashcode + attempts, out found))
-                {
-                    if (_comparer.Equals(found, value))
-                    {
-                        // Since this class will never relocate a value, we can just remove at this position
-                        if (_mapper.RemoveAt(hashcode + attempts))
+                var done = false;
+                var result = _mapper.TryGetCheckRemoveAt
+                    (
+                        hashcode + attempts,
+                        found =>
                         {
-                            return true;
-                        }
-                        // Another thread removed first
-                        return false;
-                    }
+                            if (_comparer.Equals((T)found, value))
+                            {
+                                done = true;
+                                return true;
+                            }
+                            return false;
+                        },
+                        out previous
+                    );
+                if (done)
+                {
+                    return result;
                 }
             }
-            found = default(T);
+            previous = default(T);
             return false;
         }
 

@@ -326,22 +326,29 @@ namespace Theraot.Collections.ThreadSafe
             int hashcode = _keyComparer.GetHashCode(item.Key);
             for (var attempts = 0; attempts < _probing; attempts++)
             {
-                KeyValuePair<TKey, TValue> found;
-                if (_mapper.TryGet(hashcode + attempts, out found))
-                {
-                    if (_keyComparer.Equals(found.Key, item.Key))
-                    {
-                        // Since this class will never relocate a key, we can just remove at this position
-                        if (EqualityComparer<TValue>.Default.Equals(found.Value, item.Value))
+                var done = false;
+                KeyValuePair<TKey, TValue> previous;
+                var result = _mapper.TryGetCheckRemoveAt
+                    (
+                        hashcode + attempts,
+                        found =>
                         {
-                            if (_mapper.RemoveAt(hashcode + attempts, out found))
+                            var _found = (KeyValuePair<TKey, TValue>)found;
+                            if (_keyComparer.Equals(_found.Key, item.Key))
                             {
-                                return true;
+                                done = true;
+                                if (EqualityComparer<TValue>.Default.Equals(_found.Value, item.Value))
+                                {
+                                    return true;
+                                }
                             }
-                        }
-                        // Another thread removed first - or the value did not match
-                        return false;
-                    }
+                            return false;
+                        },
+                        out previous
+                    );
+                if (done)
+                {
+                    return result;
                 }
             }
             return false;
@@ -369,19 +376,26 @@ namespace Theraot.Collections.ThreadSafe
             var hashcode = _keyComparer.GetHashCode(key);
             for (var attempts = 0; attempts < _probing; attempts++)
             {
-                KeyValuePair<TKey, TValue> found;
-                if (_mapper.TryGet(hashcode + attempts, out found))
-                {
-                    if (_keyComparer.Equals(found.Key, key))
-                    {
-                        // Since this class will never relocate a key, we can just remove at this position
-                        if (_mapper.RemoveAt(hashcode + attempts))
+                var done = false;
+                KeyValuePair<TKey, TValue> previous;
+                var result = _mapper.TryGetCheckRemoveAt
+                    (
+                        hashcode + attempts,
+                        found =>
                         {
-                            return true;
-                        }
-                        // Another thread removed first
-                        return false;
-                    }
+                            var _found = (KeyValuePair<TKey, TValue>)found;
+                            if (_keyComparer.Equals(_found.Key, key))
+                            {
+                                done = true;
+                                return true;
+                            }
+                            return false;
+                        },
+                        out previous
+                    );
+                if (done)
+                {
+                    return result;
                 }
             }
             return false;
@@ -401,20 +415,27 @@ namespace Theraot.Collections.ThreadSafe
             var hashcode = _keyComparer.GetHashCode(key);
             for (var attempts = 0; attempts < _probing; attempts++)
             {
-                KeyValuePair<TKey, TValue> found;
-                if (_mapper.TryGet(hashcode + attempts, out found))
-                {
-                    if (_keyComparer.Equals(found.Key, key))
-                    {
-                        // Since this class will never relocate a key, we can just remove at this position
-                        if (_mapper.RemoveAt(hashcode + attempts, out found))
+                var done = false;
+                KeyValuePair<TKey, TValue> previous;
+                var result = _mapper.TryGetCheckRemoveAt
+                    (
+                        hashcode + attempts,
+                        found =>
                         {
-                            value = found.Value;
-                            return true;
-                        }
-                        // Another thread removed first
-                        return false;
-                    }
+                            var _found = (KeyValuePair<TKey, TValue>)found;
+                            if (_keyComparer.Equals(_found.Key, key))
+                            {
+                                done = true;
+                                return true;
+                            }
+                            return false;
+                        },
+                        out previous
+                    );
+                if (done)
+                {
+                    value = previous.Value;
+                    return result;
                 }
             }
             return false;
@@ -435,20 +456,27 @@ namespace Theraot.Collections.ThreadSafe
             value = default(TValue);
             for (var attempts = 0; attempts < _probing; attempts++)
             {
-                KeyValuePair<TKey, TValue> found;
-                if (_mapper.TryGet(hashcode + attempts, out found))
-                {
-                    if (keyCheck(found.Key))
-                    {
-                        // Since this class will never relocate a key, we can just remove at this position
-                        if (_mapper.RemoveAt(hashcode + attempts, out found))
+                var done = false;
+                KeyValuePair<TKey, TValue> previous;
+                var result = _mapper.TryGetCheckRemoveAt
+                    (
+                        hashcode + attempts,
+                        found =>
                         {
-                            value = found.Value;
-                            return true;
-                        }
-                        // Another thread removed first
-                        return false;
-                    }
+                            var _found = (KeyValuePair<TKey, TValue>)found;
+                            if (keyCheck(_found.Key))
+                            {
+                                done = true;
+                                return true;
+                            }
+                            return false;
+                        },
+                        out previous
+                    );
+                if (done)
+                {
+                    value = previous.Value;
+                    return result;
                 }
             }
             return false;
@@ -513,26 +541,10 @@ namespace Theraot.Collections.ThreadSafe
             while (true)
             {
                 ExtendProbingIfNeeded(attempts);
-                KeyValuePair<TKey, TValue> found;
-                if (_mapper.TryGet(hashcode + attempts, out found))
+                bool isNew;
+                if (_mapper.TryGetCheckSet(hashcode + attempts, neo, found => _keyComparer.Equals(((KeyValuePair<TKey, TValue>)found).Key, key), out isNew))
                 {
-                    if (_keyComparer.Equals(found.Key, key))
-                    {
-                        // Since this class will never relocate a key, we can just set at this position
-                        bool isNew;
-                        _mapper.Set(hashcode + attempts, neo, out isNew);
-                        // Done
-                        return;
-                    }
-                }
-                else
-                {
-                    // This is an empty slot to store this value...
-                    if (_mapper.Insert(hashcode + attempts, neo))
-                    {
-                        // Done
-                        return;
-                    }
+                    return;
                 }
                 attempts++;
             }
