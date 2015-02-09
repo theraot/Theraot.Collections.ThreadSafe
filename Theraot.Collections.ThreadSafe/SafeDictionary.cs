@@ -664,6 +664,45 @@ namespace Theraot.Collections.ThreadSafe
             }
         }
 
+        public bool TryAdd(TKey key, Predicate<TKey> keyOverwriteCheck, TValue value)
+        {
+            var hashcode = _keyComparer.GetHashCode(key);
+            var neo = new KeyValuePair<TKey, TValue>(key, value);
+            var attempts = 0;
+            while (true)
+            {
+                ExtendProbingIfNeeded(attempts);
+                Predicate<object> check = found =>
+                {
+                    var _found = (KeyValuePair<TKey, TValue>)found;
+                    if (_keyComparer.Equals(_found.Key, key))
+                    {
+                        // This is the item that has been stored with the key
+                        // Throw to abort overwrite
+                        throw new ArgumentException("An item with the same key has already been added");
+                    }
+                    // This is not the key, overwrite?
+                    return keyOverwriteCheck(_found.Key);
+                };
+                try
+                {
+                    bool isNew;
+                    // TryGetCheckSet will add if no item is found, otherwise it calls check
+                    if (_mapper.TryGetCheckSet(hashcode + attempts, neo, check, out isNew))
+                    {
+                        // It added a new item
+                        return true;
+                    }
+                }
+                catch (ArgumentException)
+                {
+                    // An item with the same key has already been added
+                    return false;
+                }
+                attempts++;
+            }
+        }
+
         /// <summary>
         /// Attempts to add the specified key and associated value. The value is added if the key is not found.
         /// </summary>
