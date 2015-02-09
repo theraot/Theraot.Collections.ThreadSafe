@@ -441,6 +441,51 @@ namespace Theraot.Collections.ThreadSafe
         }
 
         /// <summary>
+        /// Removes a key by hashcode, key predicate and value predicate.
+        /// </summary>
+        /// <param name="hashcode">The hashcode to look for.</param>
+        /// <param name="keyCheck">The key predicate.</param>
+        /// <param name="valueCheck">The value predicate.</param>
+        /// <param name="value">The value.</param>
+        /// <returns>
+        ///   <c>true</c> if the specified key was removed; otherwise, <c>false</c>.
+        /// </returns>
+        [global::System.Diagnostics.CodeAnalysis.SuppressMessage("StyleCop.CSharp.DocumentationRules", "SA1650:ElementDocumentationMustBeSpelledCorrectly", Justification = "hashcode")]
+        public bool Remove(int hashcode, Predicate<TKey> keyCheck, Predicate<TValue> valueCheck, out TValue value)
+        {
+            value = default(TValue);
+            for (var attempts = 0; attempts < _probing; attempts++)
+            {
+                var done = false;
+                KeyValuePair<TKey, TValue> previous;
+                var result = _mapper.TryGetCheckRemoveAt
+                    (
+                        hashcode + attempts,
+                        found =>
+                        {
+                            var _found = (KeyValuePair<TKey, TValue>)found;
+                            if (keyCheck(_found.Key))
+                            {
+                                done = true;
+                                if (valueCheck(_found.Value))
+                                {
+                                    return true;
+                                }
+                            }
+                            return false;
+                        },
+                        out previous
+                    );
+                if (done)
+                {
+                    value = previous.Value;
+                    return result;
+                }
+            }
+            return false;
+        }
+
+        /// <summary>
         /// Removes the keys and associated values where the key satisfies the predicate.
         /// </summary>
         /// <param name="keyCheck">The predicate.</param>
@@ -501,6 +546,30 @@ namespace Theraot.Collections.ThreadSafe
                 ExtendProbingIfNeeded(attempts);
                 bool isNew;
                 if (_mapper.TryGetCheckSet(hashcode + attempts, neo, found => _keyComparer.Equals(((KeyValuePair<TKey, TValue>)found).Key, key), out isNew))
+                {
+                    return;
+                }
+                attempts++;
+            }
+        }
+
+        /// <summary>
+        /// Sets the value associated with the specified key.
+        /// </summary>
+        /// <param name="key">The key.</param>
+        /// <param name="keyCheck">The key predicate.</param>
+        /// <param name="value">The value.</param>
+        [global::System.Diagnostics.CodeAnalysis.SuppressMessage("StyleCop.CSharp.DocumentationRules", "SA1650:ElementDocumentationMustBeSpelledCorrectly", Justification = "hashcode")]
+        public void Set(TKey key, Predicate<TKey> keyCheck, TValue value)
+        {
+            var hashcode = _keyComparer.GetHashCode(key);
+            var neo = new KeyValuePair<TKey, TValue>(key, value);
+            var attempts = 0;
+            while (true)
+            {
+                ExtendProbingIfNeeded(attempts);
+                bool isNew;
+                if (_mapper.TryGetCheckSet(hashcode + attempts, neo, found => keyCheck(((KeyValuePair<TKey, TValue>)found).Key), out isNew))
                 {
                     return;
                 }
