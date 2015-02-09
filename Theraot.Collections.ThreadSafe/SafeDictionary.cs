@@ -286,6 +286,47 @@ namespace Theraot.Collections.ThreadSafe
             }
         }
 
+        public TValue GetOrAdd(TKey key, Predicate<TKey> keyOverwriteCheck, TValue value)
+        {
+            var hashcode = _keyComparer.GetHashCode(key);
+            var neo = new KeyValuePair<TKey, TValue>(key, value);
+            var attempts = 0;
+            while (true)
+            {
+                ExtendProbingIfNeeded(attempts);
+                Predicate<object> check = found =>
+                {
+                    var _found = (KeyValuePair<TKey, TValue>)found;
+                    if (_keyComparer.Equals(_found.Key, key))
+                    {
+                        // This is the item that has been stored with the key
+                        value = _found.Value;
+                        // Throw to abort overwrite
+                        throw new ArgumentException("An item with the same key has already been added");
+                    }
+                    // This is not the key, overwrite?
+                    return keyOverwriteCheck(_found.Key);
+                };
+                try
+                {
+                    bool isNew;
+                    // TryGetCheckSet will add if no item is found, otherwise it calls check
+                    if (_mapper.TryGetCheckSet(hashcode + attempts, neo, check, out isNew))
+                    {
+                        // It added a new item
+                        return value;
+                    }
+                }
+                catch (ArgumentException)
+                {
+                    // An item with the same key has already been added
+                    // Return it
+                    return value;
+                }
+                attempts++;
+            }
+        }
+
         /// <summary>
         /// Gets the pairs contained in this object.
         /// </summary>
@@ -598,10 +639,10 @@ namespace Theraot.Collections.ThreadSafe
         /// Sets the value associated with the specified key.
         /// </summary>
         /// <param name="key">The key.</param>
-        /// <param name="keyCheck">The key predicate.</param>
+        /// <param name="keyOverwriteCheck">The key predicate.</param>
         /// <param name="value">The value.</param>
         [global::System.Diagnostics.CodeAnalysis.SuppressMessage("StyleCop.CSharp.DocumentationRules", "SA1650:ElementDocumentationMustBeSpelledCorrectly", Justification = "hashcode")]
-        public void Set(TKey key, Predicate<TKey> keyCheck, TValue value)
+        public void Set(TKey key, Predicate<TKey> keyOverwriteCheck, TValue value)
         {
             var hashcode = _keyComparer.GetHashCode(key);
             var neo = new KeyValuePair<TKey, TValue>(key, value);
@@ -613,7 +654,7 @@ namespace Theraot.Collections.ThreadSafe
                 Predicate<object> check = found =>
                 {
                     var _found = (KeyValuePair<TKey, TValue>)found;
-                    return _keyComparer.GetHashCode(_found.Key) == hashcode && keyCheck(_found.Key);
+                    return _keyComparer.GetHashCode(_found.Key) == hashcode || keyOverwriteCheck(_found.Key);
                 };
                 if (_mapper.TryGetCheckSet(hashcode + attempts, neo, check, out isNew))
                 {
