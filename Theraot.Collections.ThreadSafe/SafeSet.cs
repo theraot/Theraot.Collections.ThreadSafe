@@ -411,56 +411,6 @@ namespace Theraot.Collections.ThreadSafe
         }
 
         /// <summary>
-        /// Attempts to add the specified value.
-        /// </summary>
-        /// <param name="value">The value.</param>
-        /// <param name="valueOverwriteCheck">The value predicate to approve overwriting.</param>
-        /// <returns>
-        ///   <c>true</c> if the specified key and associated value were added; otherwise, <c>false</c>.
-        /// </returns>
-        public bool TryAdd(T value, Predicate<T> valueOverwriteCheck)
-        {
-            if (valueOverwriteCheck == null)
-            {
-                throw new ArgumentNullException("valueOverwriteCheck");
-            }
-            var hashCode = _comparer.GetHashCode(value);
-            var attempts = 0;
-            while (true)
-            {
-                ExtendProbingIfNeeded(attempts);
-                Predicate<object> check = found =>
-                {
-                    var _found = (T)found;
-                    if (_comparer.Equals(_found, value))
-                    {
-                        // This is the item that has been stored with the key
-                        // Throw to abort overwrite
-                        throw new ArgumentException("The item has already been added");
-                    }
-                    // This is not the value, overwrite?
-                    return valueOverwriteCheck(_found);
-                };
-                try
-                {
-                    bool isNew;
-                    // TryGetCheckSet will add if no item is found, otherwise it calls check
-                    if (_mapper.TryGetCheckSet(hashCode + attempts, value, check, out isNew))
-                    {
-                        // It added a new item
-                        return true;
-                    }
-                }
-                catch (ArgumentException)
-                {
-                    // An item with the same key has already been added
-                    return false;
-                }
-                attempts++;
-            }
-        }
-
-        /// <summary>
         /// Tries to retrieve the value by hash code and value predicate.
         /// </summary>
         /// <param name="hashCode">The hash code to look for.</param>
@@ -508,6 +458,56 @@ namespace Theraot.Collections.ThreadSafe
                 throw new ArgumentNullException("check");
             }
             return _mapper.Where(check);
+        }
+
+        /// <summary>
+        /// Attempts to add the specified value.
+        /// </summary>
+        /// <param name="value">The value.</param>
+        /// <param name="valueOverwriteCheck">The value predicate to approve overwriting.</param>
+        /// <returns>
+        ///   <c>true</c> if the specified key and associated value were added; otherwise, <c>false</c>.
+        /// </returns>
+        internal bool TryAdd(T value, Predicate<T> valueOverwriteCheck)
+        {
+            if (valueOverwriteCheck == null)
+            {
+                throw new ArgumentNullException("valueOverwriteCheck");
+            }
+            var hashCode = _comparer.GetHashCode(value);
+            var attempts = 0;
+            while (true)
+            {
+                ExtendProbingIfNeeded(attempts);
+                Predicate<object> check = found =>
+                {
+                    var _found = (T)found;
+                    if (_comparer.Equals(_found, value))
+                    {
+                        // This is the item that has been stored with the key
+                        // Throw to abort overwrite
+                        throw new ArgumentException("The item has already been added");
+                    }
+                    // This is not the value, overwrite?
+                    return valueOverwriteCheck(_found);
+                };
+                try
+                {
+                    bool isNew;
+                    // TryGetCheckSet will add if no item is found, otherwise it calls check
+                    if (_mapper.TryGetCheckSet(hashCode + attempts, value, check, out isNew))
+                    {
+                        // It added a new item
+                        return true;
+                    }
+                }
+                catch (ArgumentException)
+                {
+                    // An item with the same key has already been added
+                    return false;
+                }
+                attempts++;
+            }
         }
 
         private void ExtendProbingIfNeeded(int attempts)
